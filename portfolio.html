@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>photogRAPHI</title>
+<meta name="description" content="Mostly analog photography by Raphi.">
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=switzer@300,400,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/style.css">
+<script>
+  try {
+    const t = localStorage.getItem('photographi-theme');
+    document.documentElement.dataset.theme = t || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  } catch (e) { document.documentElement.dataset.theme = 'light'; }
+</script>
+</head>
+<body>
+<header class="bar top" id="top">
+  <a class="mark" href="index.html" id="home" aria-label="photogRAPHI, back to the welcome"><span class="t">photog</span>RAPHI</a>
+  <div class="tagwrap" id="tagwrap">
+    <ul class="tags" id="tags" aria-label="Filter by tag"></ul>
+    <button class="more" id="more" hidden></button>
+  </div>
+  <button class="filter" id="filterBtn" aria-expanded="false" aria-controls="tagwrap">filter</button>
+  <div class="theme" role="group" aria-label="Theme">
+    <button data-theme-set="light">light</button>
+    <button data-theme-set="dark">dark</button>
+  </div>
+</header>
+
+<main id="stage" aria-label="All photographs. Drag or scroll to explore."></main>
+
+<div class="frame" aria-hidden="true"><i class="f-t"></i><i class="f-b"></i><i class="f-l"></i><i class="f-r"></i></div>
+
+<section class="info" id="info" aria-live="polite">
+  <p class="i-meta"><span id="iCount"></span><span id="iStock"></span><span class="i-sub" id="iDev"></span><span class="i-sub" id="iDate"></span><span class="i-tags" id="iTags"></span></p>
+  <p class="i-nav"><button id="prev">← prev</button><button id="next">next →</button><button id="close">close</button></p>
+  <p class="i-num" id="iNum"></p>
+</section>
+
+<p class="loading" id="loading">Developing</p>
+
+<footer class="bar bottom">
+  <p class="cap" id="cap"><span id="capF"></span><span class="dim" id="capS"></span></p>
+  <p class="hint dim" id="hint">Drag or scroll to wander. Pinch or ⌘ scroll to zoom. Click a frame.</p>
+  <label class="scans">+ try your scans<input type="file" id="file" accept="image/*" multiple class="sr"></label>
+</footer>
+
+<div class="drop" id="drop"><p>Drop to hang <span>your scans.</span></p><small>Put the film stock and frame number in the file name, like portra400_23A.jpg, and they show up as captions. Nothing leaves your computer.</small></div>
+
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }</script>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

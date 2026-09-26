@@ -6,50 +6,271 @@
 <title>photogRAPHI</title>
 <meta name="description" content="Mostly analog photography by Raphi.">
 <link rel="preconnect" href="https://api.fontshare.com">
-<link href="https://api.fontshare.com/v2/css?f[]=switzer@300,400,500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="src/style.css">
+<link href="https://api.fontshare.com/v2/css?f[]=switzer@300,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* JS writes --bg, --fg, --lead and --mark every frame from the pointer position */
+    --bg: #F4F3EF; --fg: #111111; --lead: #6B6B6B; --mark: #FF3B1F;
+    --m: 40px; --g: 24px;
+    --ease: cubic-bezier(.2, 0, 0, 1);
+  }
+  @media (max-width: 834px) { :root { --m: 32px; --g: 20px; } }
+  @media (max-width: 600px) { :root { --m: 16px; --g: 16px; } }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: "Switzer", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px; line-height: 1.35; -webkit-font-smoothing: antialiased;
+    background: var(--bg); color: var(--fg);
+  }
+  body.leaving main, body.leaving .bar { opacity: 0; transition: opacity .2s var(--ease); }
+
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .line { display: block; white-space: nowrap; }
+
+  /* the sentence */
+  .say {
+    position: absolute; left: var(--m); top: calc(64px + 9vh);
+    font-weight: 300; letter-spacing: -.035em; line-height: .96;
+    font-size: clamp(56px, 13.2vw, 240px);
+  }
+  .lead { color: var(--lead); }
+  .reel {
+    display: inline-block; vertical-align: top; overflow: hidden; overflow: clip;
+    height: 1.2em; margin-top: -.1em; padding-top: .1em; /* room for caps and descenders */
+  }
+  .strip { display: block; will-change: transform; }
+  .w { display: block; height: 1.2em; }
+  .caps { color: var(--mark); letter-spacing: -.015em; }
+
+  /* the whole page is the link */
+  .hit { position: fixed; inset: 0; z-index: 4; }
+  .hit:focus-visible { outline: 2px solid var(--mark); outline-offset: -8px; }
+
+  /* the pointer becomes the label */
+  .cursor {
+    position: fixed; left: 0; top: 0; z-index: 6; pointer-events: none;
+    white-space: nowrap; opacity: 0; transition: opacity .15s var(--ease);
+  }
+  .cursor.on { opacity: 1; }
+  @media (hover: hover) and (pointer: fine) {
+    .hit { cursor: none; }
+  }
+
+  .bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; height: 64px;
+    display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--g);
+    padding: 0 var(--m) env(safe-area-inset-bottom); align-items: center;
+    pointer-events: none;
+  }
+  .note { grid-column: 1 / 7; color: var(--lead); }
+  .count { grid-column: 7 / 10; color: var(--lead); font-variant-numeric: tabular-nums; }
+  .modes { grid-column: 10 / 13; color: var(--lead); }
+  .modes span { transition: color .2s var(--ease); }
+  .modes .now { color: var(--fg); }
+  .tap, .tilt { display: none; }
+  .tilt { pointer-events: auto; color: var(--fg); font: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+  .tilt .plus { color: var(--mark); }
+  .tilt:focus-visible { outline: 2px solid var(--mark); outline-offset: 4px; }
+
+  /* touch (no fine pointer, set from JS): the phone's tilt moves the light and a tap enters */
+  .touch .count { display: none; }
+  .touch .modes { display: none; grid-column: 7 / 10; }
+  .touch.tilting .modes { display: block; }
+  .touch.ask .tilt { display: block; grid-column: 7 / 10; }
+  .touch .tap { display: block; grid-column: 10 / 13; }
+  @media (max-width: 600px) {
+    .touch .bar {
+      grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 8px;
+      height: auto; padding-top: 16px; padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+    .touch .note { grid-column: 1 / 5; }
+    .touch.tilting .modes, .touch.ask .tilt { grid-column: 1 / 3; text-align: left; white-space: nowrap; }
+    .touch .tap { white-space: nowrap; }
+    .touch .tap { grid-column: 3 / 5; text-align: right; }
+  }
+  @media (max-width: 600px) {
+    .bar { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .note { grid-column: 1 / 4; }
+    .count { display: none; }
+    .modes { grid-column: 4 / 5; text-align: right; }
+  }
+</style>
 <script>
+  // Before paint: start from the theme this visitor last left with, or the system's.
   try {
     const t = localStorage.getItem('photographi-theme');
-    document.documentElement.dataset.theme = t || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  } catch (e) { document.documentElement.dataset.theme = 'light'; }
+    const dark = t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    if (dark) document.documentElement.style.cssText = '--bg:#0F0F0E;--fg:#EDEBE6;--lead:#8F8D88';
+  } catch (e) {}
 </script>
 </head>
 <body>
-<header class="bar top" id="top">
-  <a class="mark" href="#" id="home" aria-label="photogRAPHI, show all"><span class="t">photog</span>RAPHI</a>
-  <div class="tagwrap" id="tagwrap">
-    <ul class="tags" id="tags" aria-label="Filter by tag"></ul>
-    <button class="more" id="more" hidden></button>
-  </div>
-  <button class="filter" id="filterBtn" aria-expanded="false" aria-controls="tagwrap">filter</button>
-  <div class="theme" role="group" aria-label="Theme">
-    <button data-theme-set="light">light</button>
-    <button data-theme-set="dark">dark</button>
-  </div>
-</header>
 
-<main id="stage" aria-label="All photographs. Drag or scroll to explore."></main>
+<main>
+  <h1 class="say">
+    <span class="sr">welcome to my photography</span>
+    <span class="line lead" aria-hidden="true">welcome</span>
+    <span class="line lead" aria-hidden="true">to my</span>
+    <span class="line" aria-hidden="true">photog<span class="reel"><span class="strip" id="strip"><span class="w">raphy</span></span></span></span>
+  </h1>
+</main>
 
-<div class="frame" aria-hidden="true"><i class="f-t"></i><i class="f-b"></i><i class="f-l"></i><i class="f-r"></i></div>
+<a class="hit" id="hit" href="portfolio.html" aria-label="Enter the portfolio"></a>
+<p class="cursor" id="cursor" aria-hidden="true">enter →</p>
 
-<section class="info" id="info" aria-live="polite">
-  <p class="i-meta"><span id="iCount"></span><span id="iStock"></span><span class="i-sub" id="iDev"></span><span class="i-sub" id="iDate"></span><span class="i-tags" id="iTags"></span></p>
-  <p class="i-nav"><button id="prev">← prev</button><button id="next">next →</button><button id="close">close</button></p>
-  <p class="i-num" id="iNum"></p>
-</section>
-
-<p class="loading" id="loading">Developing</p>
-
-<footer class="bar bottom">
-  <p class="cap" id="cap"><span id="capF"></span><span class="dim" id="capS"></span></p>
-  <p class="hint dim" id="hint">Drag or scroll to wander. Pinch or ⌘ scroll to zoom. Click a frame.</p>
-  <label class="scans">+ try your scans<input type="file" id="file" accept="image/*" multiple class="sr"></label>
+<footer class="bar">
+  <p class="note">Mostly analog photography by Raphi.</p>
+  <p class="count" id="count"></p>
+  <p class="modes" aria-hidden="true"><span id="mLight">light</span> ← → <span id="mDark">dark</span></p>
+  <button class="tilt" id="tilt"><span class="plus">+</span> tilt for light and dark</button>
+  <p class="tap">tap to enter</p>
 </footer>
 
-<div class="drop" id="drop"><p>Drop to hang <span>your scans.</span></p><small>Put the film stock and frame number in the file name, like portra400_23A.jpg, and they show up as captions. Nothing leaves your computer.</small></div>
+<script>
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const root = document.documentElement;
+  document.body.classList.toggle('touch', !fine);
 
-<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }</script>
-<script type="module" src="src/main.js"></script>
+  // ── the reel: hold a word, roll to the next, forever ─────────────────
+  const WORDS = ['raphy', 'RAPHI'];
+  const HOLD = 2000;
+  const ROLL = 560;
+  const IN_OUT = 'cubic-bezier(0.77, 0, 0.175, 1)';
+  const strip = document.getElementById('strip');
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const word = i => `<span class="w${i ? ' caps' : ''}">${WORDS[i]}</span>`;
+  (async () => {
+    await document.fonts.ready;
+    let at = 0;
+    while (true) {                           // each roll awaits the last, so a throttled tab only pauses
+      await sleep(HOLD);
+      at = 1 - at;
+      strip.insertAdjacentHTML('beforeend', word(at));
+      const a = strip.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-50%)' }],
+        { duration: reduce ? 1 : ROLL, easing: IN_OUT, fill: 'forwards' });
+      await a.finished;
+      strip.firstElementChild.remove(); a.cancel(); a.finished.catch(() => {});   // swap under the held frame, nothing flashes
+    }
+  })();
+
+  // ── theme from the pointer: left is light, right is dark ─────────────
+  const LIGHT = { bg: [244, 243, 239], fg: [17, 17, 17] };
+  const DARK = { bg: [15, 15, 14], fg: [237, 235, 230] };
+  const RED = [255, 59, 31];
+  const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+  const css = c => `rgb(${c.map(Math.round).join(' ')})`;
+  const lin = v => (v /= 255) <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4;
+  const lum = c => .2126 * lin(c[0]) + .7152 * lin(c[1]) + .0722 * lin(c[2]);
+  const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+  const smooth = x => x * x * (3 - 2 * x);
+
+  let dark = root.style.cssText.includes('#0F0F0E');
+  let t = dark ? 1 : 0, goal = t;            // background position, 0 light to 1 dark
+  let ink = t, inkGoal = t;                  // text flips as a whole, it never fades through the grey
+  let last = performance.now(), raf = 0;
+
+  function paint() {
+    const bg = mix(LIGHT.bg, DARK.bg, t);
+    // Flip the text where white and black read equally well on the background,
+    // with a little hysteresis so a still hand does not make it flicker.
+    const L = lum(bg);
+    if (inkGoal === 0 && L < .16) inkGoal = 1;
+    if (inkGoal === 1 && L > .2) inkGoal = 0;
+    const fg = mix(LIGHT.fg, DARK.fg, ink);
+    const lead = mix(fg, bg, .42);
+    // The red disappears on the mid greys, so it hands over to the text color there.
+    // Display size stays readable down to about 1.75:1, below that it would vanish.
+    const red = Math.min(1, Math.max(0, (contrast(RED, bg) - 1.25) / .5));
+    root.style.setProperty('--bg', css(bg));
+    root.style.setProperty('--fg', css(fg));
+    root.style.setProperty('--lead', css(lead));
+    root.style.setProperty('--mark', css(mix(fg, RED, red)));
+    const isDark = t > .5;
+    if (isDark !== dark) {
+      dark = isDark;
+      document.getElementById('mLight').classList.toggle('now', !dark);
+      document.getElementById('mDark').classList.toggle('now', dark);
+    }
+  }
+  function frame(now) {
+    const dt = Math.min(64, now - last); last = now;
+    // Frame-rate independent easing toward the pointer: the background glides, the text snaps quicker.
+    t += (goal - t) * (1 - Math.exp(-dt / 90));
+    ink += (inkGoal - ink) * (1 - Math.exp(-dt / 45));
+    if (Math.abs(goal - t) < .001) t = goal;
+    if (Math.abs(inkGoal - ink) < .001) ink = inkGoal;
+    paint();
+    raf = (t !== goal || ink !== inkGoal) ? requestAnimationFrame(frame) : 0;
+  }
+  const wake = () => { if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
+
+  document.getElementById('mLight').classList.toggle('now', !dark);
+  document.getElementById('mDark').classList.toggle('now', dark);
+  paint();
+
+  // ── the cursor label ─────────────────────────────────────────────────
+  const cursor = document.getElementById('cursor');
+  if (fine) {
+    addEventListener('pointermove', e => {
+      // a small inset at both edges so pure light and pure dark are easy to reach
+      goal = smooth(Math.min(1, Math.max(0, (e.clientX / innerWidth - .1) / .8)));
+      wake();
+      cursor.style.transform = `translate3d(${e.clientX + 14}px, ${e.clientY + 14}px, 0)`;
+      cursor.classList.add('on');
+    });
+    document.documentElement.addEventListener('pointerleave', () => cursor.classList.remove('on'));
+  }
+
+  // ── touch: the phone's tilt moves the light ──────────────────────────
+  // Tilt is relative, like a dimmer: rolling the right edge down darkens, left edge down lightens,
+  // starting from wherever the page already is, so picking the phone up changes nothing.
+  const RANGE = 30;                          // degrees of roll from full light to full dark
+  let pos = t, prev = null;
+  function onTilt(e) {
+    if (e.gamma == null) return;
+    const angle = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+    const roll = { 0: e.gamma, 90: e.beta, 180: -e.gamma, 270: -e.beta, '-90': -e.beta }[angle] ?? e.gamma;
+    if (prev === null) { prev = roll; document.body.classList.add('tilting'); document.body.classList.remove('ask'); return; }
+    const d = roll - prev; prev = roll;
+    if (Math.abs(d) > 45) return;            // gamma wraps at ±90, ignore the jump
+    pos = Math.min(1, Math.max(0, pos + d / RANGE));
+    goal = smooth(pos);
+    wake();
+  }
+  if (!fine && 'DeviceOrientationEvent' in window) {
+    const ask = typeof DeviceOrientationEvent.requestPermission === 'function';   // iOS asks first
+    if (ask) {
+      document.body.classList.add('ask');
+      document.getElementById('tilt').addEventListener('click', e => {
+        e.stopPropagation();
+        DeviceOrientationEvent.requestPermission()
+          .then(state => { if (state === 'granted') addEventListener('deviceorientation', onTilt); })
+          .catch(() => {})
+          .finally(() => document.body.classList.remove('ask'));
+      });
+    } else {
+      addEventListener('deviceorientation', onTilt);
+    }
+  }
+
+  // ── enter: remember the theme you chose, fade, go ────────────────────
+  const hit = document.getElementById('hit');
+  hit.addEventListener('click', e => {
+    try { localStorage.setItem('photographi-theme', dark ? 'dark' : 'light'); } catch (err) {}
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0 || reduce) return;
+    e.preventDefault();
+    document.body.classList.add('leaving');
+    setTimeout(() => { location.href = hit.href; }, 200);
+  });
+  // coming back with the browser's back button restores this page from cache, still faded
+  addEventListener('pageshow', () => document.body.classList.remove('leaving'));
+
+  fetch('photos/photos.json').then(r => r.json()).then(p => {
+    document.getElementById('count').textContent = p.filter(x => !x.hidden).length + ' frames';
+  }).catch(() => {});
+</script>
 </body>
 </html>

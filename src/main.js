@@ -78,7 +78,6 @@ function setTag(t) {
 tagsEl.addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTag(b.dataset.tag); });
 moreBtn.addEventListener('click', () => setOpen(!top.classList.contains('open')));
 filterBtn.addEventListener('click', () => setOpen(!top.classList.contains('open')));
-$('#home').addEventListener('click', e => { e.preventDefault(); world.escape(); setTag('all'); });
 
 /* ---------- theme ---------- */
 const themeBtns = document.querySelectorAll('[data-theme-set]');
