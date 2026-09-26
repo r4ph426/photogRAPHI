@@ -1,0 +1,6 @@
+{
+  "about": "The only tags photos can get. Edit freely; keep it short so the nav stays clean.",
+  "subject": ["people", "street", "architecture", "interior", "landscape", "water", "plants", "objects", "animals", "night"],
+  "mood": ["quiet", "crowded", "warm", "cold", "playful"],
+  "automatic": ["colour"]
+}

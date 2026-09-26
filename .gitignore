@@ -1,0 +1,6 @@
+# full-resolution scans stay on this Mac; the site only ships photos/web and photos/full
+photos/originals/
+photos/versions.json
+.claude/settings.local.json
+.DS_Store
+node_modules/
