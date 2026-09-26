@@ -59,9 +59,9 @@
   }
 
   .bar {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; height: 64px;
+    position: fixed; left: 0; right: 0; top: 0; z-index: 5; height: calc(64px + env(safe-area-inset-top));
     display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--g);
-    padding: 0 var(--m) env(safe-area-inset-bottom); align-items: center;
+    padding: env(safe-area-inset-top) var(--m) 0; align-items: center;
     pointer-events: none;
   }
   .note { grid-column: 1 / 7; color: var(--lead); }
@@ -83,7 +83,7 @@
   @media (max-width: 600px) {
     .touch .bar {
       grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 8px;
-      height: auto; padding-top: 16px; padding-bottom: max(20px, env(safe-area-inset-bottom));
+      height: auto; padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: 16px;
     }
     .touch .note { grid-column: 1 / 5; }
     .touch.tilting .modes, .touch.ask .tilt { grid-column: 1 / 3; text-align: left; white-space: nowrap; }
@@ -108,6 +108,14 @@
 </head>
 <body>
 
+<header class="bar">
+  <p class="note">Mostly analog photography by Raphi.</p>
+  <p class="count" id="count"></p>
+  <p class="modes" aria-hidden="true"><span id="mLight">light</span> ← → <span id="mDark">dark</span></p>
+  <button class="tilt" id="tilt"><span class="plus">+</span> tilt for light and dark</button>
+  <p class="tap">tap to enter</p>
+</header>
+
 <main>
   <h1 class="say">
     <span class="sr">welcome to my photography</span>
@@ -120,13 +128,6 @@
 <a class="hit" id="hit" href="portfolio.html" aria-label="Enter the portfolio"></a>
 <p class="cursor" id="cursor" aria-hidden="true">enter →</p>
 
-<footer class="bar">
-  <p class="note">Mostly analog photography by Raphi.</p>
-  <p class="count" id="count"></p>
-  <p class="modes" aria-hidden="true"><span id="mLight">light</span> ← → <span id="mDark">dark</span></p>
-  <button class="tilt" id="tilt"><span class="plus">+</span> tilt for light and dark</button>
-  <p class="tap">tap to enter</p>
-</footer>
 
 <script>
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
