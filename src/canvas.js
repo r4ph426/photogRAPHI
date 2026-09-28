@@ -536,7 +536,7 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
       if (drift.a > .001) {
         if (s.t > drift.next) { drift.to = drift.h + (Math.random() < .5 ? -1 : 1) * (.6 + Math.random() * 1.8); drift.next = s.t + 8 + Math.random() * 7; }
         drift.h = damp(drift.h, drift.to, .35, dt) + Math.sin(s.t * .23) * .05 * dt;
-        const sp = pxToWorld(14, s.z) * drift.a * dt;
+        const sp = pxToWorld(22, s.z) * drift.a * dt;
         s.tx += Math.cos(drift.h) * sp; s.ty += Math.sin(drift.h) * sp;
       }
       if (!s.focus && !W.on) s.tz = clamp(s.tz, minZ(), maxZ());
