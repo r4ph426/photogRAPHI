@@ -140,24 +140,26 @@ function leaveRolls() {
   renderTags();
   try { history.replaceState(null, '', tag === 'all' ? location.pathname : '#' + encodeURIComponent(tag)); } catch (e) {}
 }
+// a roll is named by the year it was shot and its number that year: "Roll 2016/10"
+const rollName = p => `Roll ${String(p.date || '').slice(0, 4) || '?'}/${String(p.roll).padStart(2, '0')}`;
 function onRollFrame(i, p) {
   document.body.classList.toggle('at-divider', !!p.divider);
   if (p.divider) {
     // the old stack goes down on the table; the panel already speaks of the one waiting
     thud();
-    $('#rName').textContent = `Roll ${p.roll}`;
+    $('#rName').textContent = rollName(p);
     $('#rCount').textContent = `${p.len} photos`;
     $('#rStock').textContent = p.stock;
     $('#rDev').textContent = p.dev ? p.dev[0].toUpperCase() + p.dev.slice(1) : '';
     $('#rDate').textContent = formatDate(p.date);
     $('#rNum').textContent = '';
-    $('#bT').textContent = `Roll ${p.roll}`;
+    $('#bT').textContent = rollName(p);
     $('#bM').textContent = [formatDate(p.date), p.stock, `${p.len} photos`].filter(Boolean).join(' · ');
     try { history.replaceState(null, '', '#rolls/' + encodeURIComponent(p.first.key)); } catch (e) {}
     return;
   }
   tick();
-  $('#rName').textContent = `Roll ${p.roll}`;
+  $('#rName').textContent = rollName(p);
   $('#rCount').textContent = `${String(p.inRoll + 1).padStart(String(p.rollLen).length, '0')} / ${p.rollLen}`;
   $('#rStock').textContent = p.stock;
   $('#rDev').textContent = p.dev ? p.dev[0].toUpperCase() + p.dev.slice(1) : '';
@@ -174,7 +176,6 @@ function rollJump(dir) {
 }
 $('#rPrev').addEventListener('click', () => rollJump(-1));
 $('#rNext').addEventListener('click', () => rollJump(1));
-$('#rClose').addEventListener('click', leaveRolls);
 const soundBtn = $('#rSound');
 soundBtn.setAttribute('aria-pressed', soundOn());
 soundBtn.addEventListener('click', () => { setSound(!soundOn()); soundBtn.setAttribute('aria-pressed', soundOn()); });
@@ -278,10 +279,10 @@ function showInfo(p, i, n) {
   $('#toRoll').parentElement.hidden = p.roll == null || !rollSeq.length;
 }
 $('#iTags').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { world.escape(); setTag(b.dataset.tag); } });
-$('#close').addEventListener('click', () => world.escape());
 
 /* ---------- input ---------- */
-const hint = $('#hint'), hintText = hint.textContent;
+// the grid needs no instructions; the worlds say in a line how they move
+const hint = $('#hint');
 function setHint() {
   const m = mode(tag);
   if (m === 'globe') {
@@ -289,7 +290,7 @@ function setHint() {
     hint.textContent = `Drag to turn it. ${years[0]} at the top, ${years.at(-1)} at the bottom. Click a face.`;
   } else if (m === 'drift') hint.textContent = 'It drifts on its own. Drag or scroll to row along. Click a frame.';
   else if (m === 'interior') hint.textContent = 'Drag to turn around. Scroll to fold the room open into its plan.';
-  else { hint.textContent = hintText; return; }
+  else { hint.textContent = ''; return; }
   hint.classList.remove('gone');
 }
 const touched = () => hint.classList.add('gone');

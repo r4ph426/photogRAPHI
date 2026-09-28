@@ -204,23 +204,22 @@ body.rolling .bottom { opacity: 0; pointer-events: none; }
 body.rolling #stage canvas { cursor: pointer; }
 .roll .r-count { font-variant-numeric: tabular-nums; color: var(--grey); }
 /* Every detail view, a single photo or the roll, is laid out the same: the frame number large at
-   the top; the facts at the bottom with the way onward (next roll, the whole roll); close top right.
-   The way through the photos is the picture itself: its left, middle and right thirds. */
+   the top; the facts at the bottom with the way onward (next roll, the whole roll). The way through
+   the photos and out is the picture itself: its left, middle and right thirds (and Esc). */
 .info .i-num { margin: -.14em 0 0; font-size: clamp(6rem, 13vw, 14rem); }
 .info .i-meta { margin-top: auto; }
 .info button:hover { color: var(--signal); }
 /* the arrows carry the signal red, like the + on the welcome page */
 .info .ic { color: var(--signal); }
-/* sound and close sit top right, apart from the way through the roll */
+/* sound sits top right, apart from the way through the roll */
 .r-top {
   position: fixed; z-index: 5; top: calc(var(--top) + 24px); right: var(--m); display: flex; gap: 20px;
   opacity: 0; pointer-events: none; transition: opacity .3s var(--ease);
 }
 body.rolling #rTop { opacity: 1; pointer-events: auto; transition-delay: .5s; }
-body.focused #dTop { opacity: 1; pointer-events: auto; transition-delay: .2s; }
 .r-top button:hover { color: var(--signal); }
-/* sound and close carry a Phosphor mark in signal red after the word; when sound is off the word is
-   struck through and the speaker is struck too */
+/* sound carries a Phosphor speaker in signal red after the word; when it is off the word is struck
+   through and the speaker is struck too */
 .r-top button { display: inline-flex; align-items: center; gap: 6px; }
 .r-top .bi { width: 1.05em; height: 1.05em; flex: none; fill: var(--signal); }
 .r-top #rSound .s-off, .r-top #rSound[aria-pressed="false"] .s-on { display: none; }
@@ -235,9 +234,11 @@ body.focused #dTop { opacity: 1; pointer-events: auto; transition-delay: .2s; }
   transition: opacity .35s var(--ease), transform .5s var(--ease);
 }
 body.rolling.at-divider .between { opacity: 1; transform: translate(-50%, -50%); transition-delay: .15s; }
-.between .b-k { color: color-mix(in srgb, var(--grey) 55%, var(--paper)); }
+/* the whole title card is in signal red */
+.between { color: var(--signal); }
+.between .b-k { opacity: .7; }
 .between .b-t { font-size: clamp(3rem, 6vw, 5.5rem); font-weight: 300; line-height: 1; letter-spacing: -.025em; margin: 10px 0 12px; }
-.between .b-m { color: var(--grey); font-variant-numeric: tabular-nums; }
+.between .b-m { font-variant-numeric: tabular-nums; }
 @media (max-width: 600px) { .between { left: 50%; top: 30vh; } }
 .i-meta span { display: block; }
 .i-meta #iCount { font-variant-numeric: tabular-nums; color: var(--grey); }
