@@ -6,7 +6,7 @@
 <title>photogRAPHI</title>
 <meta name="description" content="Mostly analog photography by Raphi.">
 <link rel="preconnect" href="https://api.fontshare.com">
-<link href="https://api.fontshare.com/v2/css?f[]=switzer@300,400,500&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=switzer@300,400,500&f[]=switzer@301,401&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="src/style.css">
 <script>
   try {
@@ -17,6 +17,7 @@
 </head>
 <body>
 <header class="bar top" id="top">
+  <i class="lens" id="lens" aria-hidden="true"></i>
   <a class="mark" href="index.html" id="home" aria-label="photogRAPHI, back to the welcome"><span class="t">photog</span>RAPHI</a>
   <div class="tagwrap" id="tagwrap">
     <ul class="tags" id="tags" aria-label="Filter by tag"></ul>
@@ -28,6 +29,7 @@
     <button data-theme-set="dark">dark</button>
   </div>
 </header>
+<svg class="sr" aria-hidden="true" width="0" height="0"><filter id="glass" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feImage id="glassMap" x="0" y="0" width="100" height="30" preserveAspectRatio="none" result="map"/><feDisplacementMap in="SourceGraphic" in2="map" scale="14" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
 
 <main id="stage" aria-label="All photographs. Drag or scroll to explore."></main>
 
@@ -36,8 +38,18 @@
 <section class="info" id="info" aria-live="polite">
   <p class="i-meta"><span id="iCount"></span><span id="iStock"></span><span class="i-sub" id="iDev"></span><span class="i-sub" id="iDate"></span><span class="i-tags" id="iTags"></span></p>
   <p class="i-nav"><button id="prev">← prev</button><button id="next">next →</button><button id="close">close</button></p>
+  <p class="i-roll"><button id="toRoll">whole roll →</button></p>
   <p class="i-num" id="iNum"></p>
 </section>
+
+<section class="info roll" id="roll" aria-live="polite" aria-label="Roll">
+  <p class="i-meta"><span id="rName"></span><span class="r-count" id="rCount"></span><span id="rStock"></span><span class="i-sub" id="rDev"></span><span class="i-sub" id="rDate"></span></p>
+  <p class="i-nav"><button id="rPrevF" aria-label="Previous frame"><span class="ic" aria-hidden="true">←</span> prev</button><button id="rNextF" aria-label="Next frame">next <span class="ic" aria-hidden="true">→</span></button></p>
+  <p class="i-nav"><button id="rPrev"><span class="ic" aria-hidden="true">←</span> prev roll</button><button id="rNext">next roll <span class="ic" aria-hidden="true">→</span></button></p>
+  <p class="r-hint">Scroll or use the arrow keys to leaf through the roll.</p>
+  <p class="i-num" id="rNum"></p>
+</section>
+<p class="r-top"><button id="rSound" aria-pressed="true">sound</button><button id="rClose">close</button></p>
 
 <p class="loading" id="loading">Developing</p>
 
