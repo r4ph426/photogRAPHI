@@ -66,14 +66,15 @@ ul { list-style: none; }
 .tags button, .theme button, .filter { white-space: nowrap; }
 .tags button { display: inline-flex; align-items: center; gap: 2px; transition: color .2s var(--ease); }
 .tags .c { color: var(--grey); font-variant-numeric: tabular-nums; margin-left: 2px; transition: color .2s var(--ease); }
-/* the chosen tag turns its chip inside out: solid signal red, the words and the mark in white.
-   Its red is the button's own background, so it stays on top of the gliding glass. */
-.tags button[aria-pressed="true"] { background: var(--signal); color: #fff; border-radius: 999px; }
-.tags button[aria-pressed="true"] .c { color: rgba(255,255,255,.78); }
-.tags .world[aria-pressed="true"] .wi { fill: #fff; }
+/* the chosen tag turns its chip inside out: solid signal red with the words and the mark in near
+   black, which holds AA on this red (5.3:1; white only reaches 3.6:1). Its red is the button's own
+   background, so it stays on top of the gliding glass. */
+.tags button[aria-pressed="true"] { background: var(--signal); color: #111; border-radius: 999px; }
+.tags button[aria-pressed="true"] .c { color: rgba(17,17,17,.8); }
+.tags .world[aria-pressed="true"] .wi { fill: #111; }
 .tags button[aria-pressed="true"]::before { box-shadow: 0 8px 20px -10px rgba(255,59,31,.7); background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
-.top .tags button.lit[aria-pressed="true"] { color: #fff; }
-.top .tags button.lit[aria-pressed="true"] .c { color: rgba(255,255,255,.78); }
+.top .tags button.lit[aria-pressed="true"] { color: #111; }
+.top .tags button.lit[aria-pressed="true"] .c { color: rgba(17,17,17,.8); }
 @media (max-width: 600px) { .tags button[aria-pressed="true"] { padding: 1px 8px; margin: -1px -8px; } }
 /* the theme toggle: one chip, a thumb of the same milky glass as the lens slides under the active word
    on a spring and gives a little when pressed */
