@@ -41,78 +41,116 @@ ul { list-style: none; }
   padding: 0 var(--m); color: #fff; mix-blend-mode: difference;
 }
 .top { top: 0; min-height: var(--top); align-items: center; }
-/* The top bar reads on a milky band of paper instead of blending with the photos: difference
-   blending turned the text mid-grey on mid-grey photos. The band blurs and fades out downward. */
+/* The top bar has no background of its own: the controls float on their own chips of milky paper, so
+   they read over any photo; the mark stays plain type. The chip is a ::before at z-index -1, which lands below the glass lens and
+   above the photos, as long as the item itself does not start a stacking context. */
 .top { color: var(--ink); mix-blend-mode: normal; }
-.top::before {
-  content: ""; position: absolute; left: 0; right: 0; top: 0; height: calc(100% + 36px); z-index: -1; pointer-events: none;
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--paper) 90%, transparent), color-mix(in srgb, var(--paper) 68%, transparent) 60%, transparent);
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent); mask-image: linear-gradient(to bottom, #000 55%, transparent);
+.top > :not(.lens) { position: relative; }
+.top .filter { position: relative; padding: 4px 12px; border-radius: 999px; }
+.top .theme::before, .top .filter::before, .tagwrap .tags button::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: 999px; pointer-events: none;
+  background: color-mix(in srgb, var(--paper) 74%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 2px rgba(0,0,0,.05), 0 8px 20px -12px rgba(0,0,0,.35);
 }
-.top > :not(.lens) { position: relative; z-index: 1; }
+.top.open .tags button::before { display: none; }
 .bottom { bottom: 0; height: var(--bot); padding-bottom: max(20px, env(safe-area-inset-bottom)); align-items: end; transition: opacity .25s var(--ease); }
 
-.mark { grid-column: 1 / 3; font-size: 20px; letter-spacing: -.005em; color: inherit; text-decoration: none; white-space: nowrap; }
+/* RAPHI always carries the signal red */
+.mark { grid-column: 1 / 3; justify-self: start; font-size: 20px; letter-spacing: -.005em; color: var(--signal); text-decoration: none; white-space: nowrap; }
 .mark .t { opacity: .55; }
 .top .mark .t { opacity: 1; color: var(--grey); }
 
 .tagwrap { grid-column: 3 / 11; display: flex; align-items: baseline; gap: var(--g); min-width: 0; }
 .tags { display: flex; flex-wrap: wrap; column-gap: 20px; row-gap: 6px; height: 1.35em; overflow: hidden; overflow: clip; min-width: 0; }
-.tags button, .more, .theme button, .filter { white-space: nowrap; }
-.tags .c { color: var(--grey); font-variant-numeric: tabular-nums; margin-left: 2px; }
-.tags button[aria-pressed="true"], .theme button[aria-pressed="true"] { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .2em; }
-.theme { grid-column: 11 / 13; display: flex; gap: 12px; }
+.tags button, .theme button, .filter { white-space: nowrap; }
+.tags button { display: inline-flex; align-items: center; gap: 2px; transition: color .2s var(--ease); }
+.tags .c { color: var(--grey); font-variant-numeric: tabular-nums; margin-left: 2px; transition: color .2s var(--ease); }
+/* the chosen tag turns its chip inside out: solid signal red, the words and the mark in white.
+   Its red is the button's own background, so it stays on top of the gliding glass. */
+.tags button[aria-pressed="true"] { background: var(--signal); color: #fff; border-radius: 999px; }
+.tags button[aria-pressed="true"] .c { color: rgba(255,255,255,.78); }
+.tags .world[aria-pressed="true"] .wi { fill: #fff; }
+.tags button[aria-pressed="true"]::before { box-shadow: 0 8px 20px -10px rgba(255,59,31,.7); background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.top .tags button.lit[aria-pressed="true"] { color: #fff; }
+.top .tags button.lit[aria-pressed="true"] .c { color: rgba(255,255,255,.78); }
+@media (max-width: 600px) { .tags button[aria-pressed="true"] { padding: 1px 8px; margin: -1px -8px; } }
+/* the theme toggle: one chip, a thumb of the same milky glass as the lens slides under the active word
+   on a spring and gives a little when pressed */
+.theme { grid-column: 11 / 13; justify-self: end; margin-right: -4px; display: flex; padding: 3px; border-radius: 999px; }
+.theme::before { border-radius: inherit; }
+.theme button { position: relative; padding: 2px 10px; border-radius: 999px; color: var(--grey); transition: color .3s var(--ease); }
+.theme button[aria-pressed="true"] { color: #111; }
+@media (hover: hover) and (pointer: fine) { .theme button[aria-pressed="false"]:hover { color: var(--ink); } }
+.theme .thumb {
+  position: absolute; left: 0; top: 3px; bottom: 3px; width: 0; border-radius: 999px; pointer-events: none;
+  transform: translateX(var(--x, 0)) scale(var(--s, 1));
+  background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.8) 60%, rgba(255,255,255,.9));
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 .5px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.1), 0 6px 14px -8px rgba(0,0,0,.4);
+  transition: transform .5s cubic-bezier(.3, 1.35, .5, 1), width .5s cubic-bezier(.3, 1.35, .5, 1);
+}
+.theme:active .thumb { --s: .92; }
 
-/* world tags: set in italic with a small drawn mark; their letters hop when you point at them */
-.tags .world { font-style: italic; }
+/* world tags: set like every other tag, with a Phosphor mark in signal red, the only colour in
+   the list; their letters hop when you point at them */
 .tags .world .wl span { display: inline-block; }
-.tags .world .wi { width: .62em; height: .62em; margin-left: 3px; vertical-align: .42em; fill: none; stroke: var(--signal); stroke-width: 1.1; overflow: visible; }
-@media (hover: hover) and (pointer: fine) { .tags .world:hover { color: var(--signal); } .tags .world:hover .c { color: var(--signal); opacity: .7; } }
-.tags .world .c { margin-left: 1px; }
-.top button { transition: transform .35s cubic-bezier(.3, 1.35, .5, 1); }
+.tags .world .wi { width: 1.05em; height: 1.05em; flex: none; margin-left: 5px; fill: var(--signal); }
+.top button { transition: transform .35s cubic-bezier(.3, 1.35, .5, 1), color .2s var(--ease); }
 @media (hover: hover) and (pointer: fine) {
-  .tags button:hover, .more:hover, .theme button:hover { transform: scale(1.06); }
   .tags .world:hover .wl span { animation: hop .46s cubic-bezier(.3, 1.4, .5, 1) calc(var(--i) * 28ms) both; }
   .tags .world:hover .wi { animation: hop .46s cubic-bezier(.3, 1.4, .5, 1) 160ms both; }
 }
 @keyframes hop { 45% { transform: translateY(-.2em); } }
 
-/* the glass: a milky pill that glides under the pointer, so the tag it sits on reads clearly */
+/* desktop and tablet: every tag at once, in a list floating down the left side, centred in the
+   height. The list has no background; each tag floats on its own chip. Space splits all / the
+   worlds / the rest. */
+@media (min-width: 601px) {
+  .top > .tagwrap {
+    position: fixed; z-index: 1; left: calc(var(--m) - 24px); top: 50%; transform: translateY(-50%);
+    display: block; width: auto;
+    transition: opacity .3s var(--ease), transform .3s var(--ease);
+  }
+  /* the scroll box for short screens gets room around it, so the chips' shadows are not clipped */
+  .tagwrap .tags {
+    flex-direction: column; flex-wrap: nowrap; align-items: flex-start; height: auto; row-gap: 2px; padding: 12px;
+    max-height: calc(100vh - var(--top) - var(--bot)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  }
+  .tagwrap .tags::-webkit-scrollbar { display: none; }
+  .tagwrap .tags button { position: relative; display: flex; padding: 4px 12px; border-radius: 999px; }
+  .tagwrap .tags .c { padding-left: 6px; }
+  .tagwrap .tags li.g { margin-top: 22px; }
+  /* a single photo or a roll takes the left side for its own panel, so the list steps aside */
+  body.focused .top > .tagwrap, body.rolling .top > .tagwrap { opacity: 0; transform: translate(-12px, -50%); pointer-events: none; }
+}
+
+/* the glass: a pill of milky white that glides under the pointer. Always light, in either theme,
+   and whatever it sits on turns to dark ink so it reads. */
 .lens {
   position: fixed; left: 0; top: 0; z-index: 0; width: 0; height: 0; border-radius: 999px;
   pointer-events: none; opacity: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,.86), rgba(255,255,255,.66) 60%, rgba(255,255,255,.78));
+  background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.72) 60%, rgba(255,255,255,.82));
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 1px rgba(0,0,0,.06),
     inset 0 0 0 .5px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.08), 0 10px 24px -12px rgba(0,0,0,.35);
   -webkit-backdrop-filter: blur(8px) saturate(1.6); backdrop-filter: blur(8px) saturate(1.6);
   transition:
     transform .42s cubic-bezier(.3, 1.3, .5, 1), width .42s cubic-bezier(.3, 1.3, .5, 1), height .42s cubic-bezier(.3, 1.3, .5, 1),
-    opacity .18s var(--ease), box-shadow .3s var(--ease);
+    opacity .18s var(--ease);
   will-change: transform;
 }
+.tagwrap .lens { position: absolute; }
 .lens.refract { backdrop-filter: url(#glass) blur(6px) saturate(1.6); }
 .lens.on { opacity: 1; }
-/* world tags: the same milk, with a red rim and a warm glow underneath */
-.lens.world {
-  background: linear-gradient(180deg, rgba(255,250,248,.9), rgba(255,244,241,.7) 60%, rgba(255,248,246,.82));
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,1), inset 0 0 0 1px rgba(255,59,31,.45),
-    0 1px 2px rgba(255,59,31,.15), 0 10px 26px -10px rgba(255,59,31,.6);
-}
-:root[data-theme="dark"] .lens { background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.1) 60%, rgba(255,255,255,.15)); box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 0 0 .5px rgba(255,255,255,.2), 0 10px 24px -12px rgba(0,0,0,.6); }
-:root[data-theme="dark"] .lens.world { box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 0 0 1px rgba(255,59,31,.6), 0 10px 26px -10px rgba(255,59,31,.55); }
+.top button.lit { color: #111; }
+.top button.lit .c { color: #5E5D59; }
 @media (prefers-reduced-motion: reduce) { .lens { transition: opacity .18s; } .tags .world .wl span, .tags .world .wi { animation: none !important; } }
-.theme button[aria-pressed="false"] { color: var(--grey); }
 .filter { display: none; }
 
 /* solid states: tag index open, or a photo in its frame */
 .top.open, body.focused .top { mix-blend-mode: normal; color: var(--ink); }
 .top.open { background: var(--paper); align-items: start; padding-top: 22px; padding-bottom: 24px; }
 .top.open .tags { height: auto; }
-.top.open .tags button[aria-pressed="true"], body.focused .tags button[aria-pressed="true"] { color: var(--signal); }
-.top.open .tags button:hover, body.focused .top button:hover, body.focused .mark:hover { color: var(--signal); }
 body.focused .bottom { opacity: 0; pointer-events: none; }
 
 .cap { grid-column: 1 / 5; font-variant-numeric: tabular-nums; }
@@ -144,7 +182,14 @@ body.rolling .roll { opacity: 1; transform: none; pointer-events: auto; transiti
 body.rolling .bottom { opacity: 0; pointer-events: none; }
 body.rolling #stage canvas { cursor: pointer; }
 .roll .r-count { font-variant-numeric: tabular-nums; color: var(--grey); }
-.roll .i-nav + .i-nav { margin-top: -12px; }
+/* the frame number stands large at the top; the roll, its film and date sit at the bottom with the
+   way to the next roll; the way through the frames hangs under the print */
+.roll .i-num { margin: -.14em 0 0; font-size: clamp(6rem, 13vw, 14rem); }
+.roll .i-meta { margin-top: auto; }
+@media (min-width: 601px) {
+  /* the deck stands on a baseline 48px above the frame's bottom edge; the frame nav sits under it */
+  .roll .r-frames { position: fixed; left: var(--fl); top: calc(100vh - var(--bot) - 30px); }
+}
 .roll button:hover, .i-roll button:hover { color: var(--signal); }
 .r-hint { color: var(--grey); }
 /* the arrows carry the signal red, like the + on the welcome page */
@@ -189,11 +234,10 @@ body.rolling .r-top { opacity: 1; pointer-events: auto; transition-delay: .5s; }
   .bar { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .mark { grid-column: 1 / 3; font-size: 18px; }
   .filter { display: block; grid-column: 3 / 4; grid-row: 1; }
-  .theme { grid-column: 3 / 5; grid-row: 1; gap: 8px; justify-self: end; }
+  .theme { grid-column: 3 / 5; grid-row: 1; justify-self: end; }
   .tagwrap { display: none; grid-column: 1 / 5; grid-row: 2; margin-top: 16px; }
   .top.open .tagwrap { display: flex; }
   .top.open { padding-top: 16px; }
-  .more { display: none; }
   .cap { display: none; } .scans { grid-column: 1 / 5; }
   .bottom { height: 64px; }
   .info {
@@ -207,7 +251,8 @@ body.rolling .r-top { opacity: 1; pointer-events: auto; transition-delay: .5s; }
   .roll { grid-template-rows: 1fr auto auto; }
   .roll .i-num { grid-row: 1 / 4; }
   .r-top { top: calc(var(--top) + 8px); gap: 16px; }
-  .roll .i-nav + .i-nav { margin-top: 0; }
+  .roll .i-meta { margin-top: 0; grid-row: 1; } .roll .r-frames { grid-row: 2; } .roll .r-rolls { grid-row: 3; }
+  .roll .i-num { margin: 0 0 -.1em; font-size: 5rem; }
   .r-hint { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }

@@ -5,8 +5,8 @@
 // prints you leaf through in shooting order. The same meshes fly between the two.
 // Then the worlds: a tag that is a place of its own. Its photos fly out of the sheet into a shape
 // with its own physics. people: a turning globe, oldest at the top pole. water: a curved ribbon
-// that drifts and ripples like a surface. crowded: a packed crowd of grainy prints that make room
-// for the pointer. interior: a room you stand in, which unfolds into its floor plan as you scroll.
+// that drifts and ripples like a surface. interior: a room you stand in, which unfolds into its floor
+// plan as you scroll.
 import * as THREE from 'three';
 import { rng } from './placeholders.js';
 
@@ -26,11 +26,12 @@ void main() {
 }`;
 const FS = /* glsl */`
 uniform sampler2D map; uniform float uAlpha; uniform float uTex; uniform vec3 uColor; uniform vec2 uVel;
-uniform float uTime; uniform float uWave; uniform float uGrain;
+uniform float uTime; uniform float uWave; uniform vec4 uCrop;
 varying vec2 vUv;
 void main() {
   vec3 c = uColor;
-  vec2 uv = vUv;
+  // a print that fills a cell of another shape shows its middle (uCrop: scale xy, offset zw)
+  vec2 uv = vUv * uCrop.xy + uCrop.zw;
   // water: seen through a moving surface
   uv.x += sin(uv.y * 18.0 + uTime * 2.2) * 0.004 * uWave;
   uv.y += sin(uv.x * 14.0 - uTime * 1.7) * 0.004 * uWave;
@@ -39,18 +40,13 @@ void main() {
     vec3 t = vec3(texture2D(map, uv + sh).r, texture2D(map, uv).g, texture2D(map, uv - sh).b);
     c = mix(uColor, t, uTex);
   }
-  // crowded: pushed film grain, alive at 24 frames a second
-  if (uGrain > 0.001) {
-    float n = fract(sin(dot(floor(gl_FragCoord.xy / 1.6) + floor(uTime * 24.0) * 7.13, vec2(12.9898, 78.233))) * 43758.5453);
-    c += (n - 0.5) * 0.2 * uGrain;
-  }
   gl_FragColor = vec4(c, uAlpha);
   #include <colorspace_fragment>
 }`;
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const damp = (a, b, l, dt) => a + (b - a) * (1 - Math.exp(-l * dt));
-const COL = 1, GAP = .03;
+const COL = 1, GAP = .015;
 const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const inOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const STACK = 10;                                // prints in the deck at once
@@ -73,9 +69,8 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
   // the worlds: W.k is the formation clock, W.f the lift of one chosen photo out of the shape
   const W = {
     kind: null, on: false, was: false, k: 0, focus: null, f: 0, t: 0, cx: 0, cy: 0, cz: 0,
-    rx: .35, ry: 0, vx: 0, vy: .1, R: 1, zoom: 1,             // globe: tilt, turn, spin
+    q: new THREE.Quaternion(), vx: 0, vy: .1, R: 1, zoom: 1,  // globe: orientation, spin
     off: 0, ov: 0, L: 1, hb: .9,                              // drift: where the ribbon is, its speed
-    gR: .5,                                                   // crowded: how far people step aside
     yaw: 0, yv: 0, un: 0, ut: 0, D: 1.2, H: .72,              // interior: turn, unfold, room size
   };
   const uTime = { value: 0 };
@@ -88,6 +83,11 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
     if (W.kind === 'globe') return W.R * 1.3 / (TAN * narrow()) / W.zoom;
     if (W.kind === 'drift') return W.hb / (.9 * TAN * Math.min(1, narrow() * 1.6));
     return W.cz;
+  }
+  // turn the globe about the screen's axes, like a trackball: it rolls over the poles freely
+  const XAX = new THREE.Vector3(1, 0, 0), YAX = new THREE.Vector3(0, 1, 0), QR = new THREE.Quaternion();
+  function turn(ax, ay) {
+    W.q.premultiply(QR.setFromAxisAngle(XAX, ax)).premultiply(QR.setFromAxisAngle(YAX, ay)).normalize();
   }
   // how far in front of the camera a chosen photo hangs when it lifts out of the shape
   function liftD() {
@@ -105,9 +105,12 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
 
   // Every print shares one long side, like paper from the same box; it sits flush left in the
   // window the frame leaves open, the same place a focused photo goes.
+  // The front print stands on a baseline, above the frame nav on wider screens, and is as large as
+  // the frame allows once the edges of the prints behind have room above and to the right.
   function deckBox() {
-    const f = frameRect(), w = f.x1 - f.x0, h = f.y1 - f.y0;
-    return { x0: f.x0, cy: (f.y0 + f.y1) / 2, L: Math.min(h * .74, w * .78) };
+    const f = frameRect(), yb = f.y1 - (innerWidth > 600 ? 48 : 0);
+    const w = f.x1 - f.x0 - 56, h = yb - f.y0 - 110;
+    return { x0: f.x0, yb, w, h, L: Math.min(w, h) };
   }
   const toWorld = (px, py) => [s.x + pxToWorld(px - innerWidth / 2, s.z), s.y - pxToWorld(py - innerHeight / 2, s.z)];
 
@@ -137,7 +140,7 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
 
   function mesh() {
     const mat = new THREE.ShaderMaterial({
-      uniforms: { map: { value: null }, uTex: { value: 0 }, uColor: { value: new THREE.Color() }, uAlpha: { value: 0 }, uVel, uCam, uTime, uWave: { value: 0 }, uGrain: { value: 0 } },
+      uniforms: { map: { value: null }, uTex: { value: 0 }, uColor: { value: new THREE.Color() }, uAlpha: { value: 0 }, uVel, uCam, uTime, uWave: { value: 0 }, uCrop: { value: new THREE.Vector4(1, 1, 0, 0) } },
       vertexShader: VS, fragmentShader: FS, transparent: true,
     });
     const m = new THREE.Mesh(geo, mat);
@@ -181,20 +184,31 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
   // the sheet; in a world they just leave.
   function shape(items) {
     const n = items.length, byDate = items.map((p, i) => i).sort((a, b) => String(items[a].date).localeCompare(String(items[b].date)) || a - b);
-    const fit = (u, side) => { const a = u.p.aspect; u.ww = a >= 1 ? side : side * a; u.wh = a >= 1 ? side / a : side; };
     W.cx = s.x; W.cy = s.y; W.cz = s.tz; W.k = reduced ? 1 : 0; W.t = 0;
     for (let i = n; i < slots.length; i++) pool[i].userData.wt = false;
     const R = rng(n * 17 + 3);
 
     if (W.kind === 'globe') {
-      // Fibonacci points walked in date order from the top pole down: latitude is time
-      const GA = Math.PI * (3 - Math.sqrt(5)), side = Math.sqrt(4 * Math.PI / n) * .86;
-      W.R = 1; W.rx = .35; W.ry = 0; W.vy = .1; W.zoom = 1;
-      byDate.forEach((i, k) => {
-        const y = 1 - 2 * (k + .5) / n, rr = Math.sqrt(1 - y * y), th = k * GA, u = pool[i].userData;
-        u.wt = true; u.gp = new THREE.Vector3(Math.cos(th) * rr, y, Math.sin(th) * rr);
-        u.wd = (k / n) * .35;                     // the top forms first, then the years below
-        fit(u, side);
+      // A closed mosaic: rings of latitude walked in date order from the top pole down, so latitude
+      // is time. Each ring gets prints by its length and each print fills its cell, so no gaps show.
+      W.R = 1; W.q.setFromEuler(E.set(.35, 0, 0)); W.vx = 0; W.vy = .1; W.zoom = 1;
+      const B = clamp(Math.round(Math.sqrt(n * Math.PI * 1.25 / 4)), 1, n), dl = Math.PI / B;
+      const lat = [...Array(B)].map((_, b) => Math.PI / 2 - (b + .5) * dl), cl = lat.map(Math.cos);
+      const sc = cl.reduce((a, b) => a + b, 0), k = cl.map(c => Math.max(1, Math.round(n * c / sc)));
+      for (let d = n - k.reduce((a, b) => a + b, 0); d; d -= Math.sign(d)) {
+        const b = k.indexOf(Math.max(...k)); k[b] += Math.sign(d);    // settle the rounding on the widest ring
+      }
+      let at = 0;
+      k.forEach((kb, b) => {
+        // flat tiles touch the sphere at their middle, so they reach its edges by the tangent, plus a hair
+        const hh = 2 * Math.tan(dl / 2) * 1.03, ww = 2 * cl[b] * Math.tan(Math.PI / Math.max(kb, 3)) * 1.03;
+        for (let q = 0; q < kb; q++, at++) {
+          const u = pool[byDate[at]].userData, lon = (q + .5 + (b % 2) * .5) * 2 * Math.PI / kb;
+          u.wt = true; u.ww = ww; u.wh = hh;
+          u.gp = new THREE.Vector3(Math.cos(lon) * cl[b], Math.sin(lat[b]), Math.sin(lon) * cl[b]);
+          LOOK.position.copy(u.gp); LOOK.lookAt(u.gp.x * 2, u.gp.y * 2, u.gp.z * 2); u.gq = LOOK.quaternion.clone();
+          u.wd = (at / n) * .35;                  // the top forms first, then the years below
+        }
       });
     }
 
@@ -212,34 +226,34 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
       byDate.forEach(i => { const u = pool[i].userData; let d = u.dx - W.off; d = ((d % W.L) + W.L) % W.L; if (d > W.L / 2) d -= W.L; u.wd = Math.min(Math.abs(d) * .08, .35); });
     }
 
-    if (W.kind === 'grain') {
-      // a crowd packed shoulder to shoulder across the whole view, slightly overlapping
-      const z = s.tz, vh = visH(z) * .86, vw = visH(z) * cam.aspect * .98;
-      const cols = Math.max(3, Math.round(Math.sqrt(n * vw / vh))), rows = Math.ceil(n / cols);
-      const cw = vw / cols, ch = vh / rows, side = Math.min(cw, ch) * 1.3;
-      W.gR = Math.max(cw, ch) * 1.7;
-      const order = items.map((p, i) => i).sort(() => R() - .5);
-      order.forEach((i, k) => {
-        const u = pool[i].userData, c = k % cols, r0 = Math.floor(k / cols);
-        u.wt = true; fit(u, side);
-        u.gx = W.cx - vw / 2 + (c + .5 + (r0 % 2 ? .25 : -.25) + (R() - .5) * .35) * cw;
-        u.gy = W.cy + vh / 2 - vh * .02 - (r0 + .5 + (R() - .5) * .3) * ch;
-        u.gz = R() * .02; u.gr = (R() - .5) * .16; u.ph = R() * 6.3;
-        u.ox = u.oy = u.ovx = u.ovy = 0;
-        u.wd = R() * .35;
-      });
-    }
-
     if (W.kind === 'interior') {
-      // four walls around the camera, the photos hung in rows along them, in date order
-      W.D = 1.2; W.H = .72; W.yaw = 0; W.yv = .04; W.un = W.ut = 0;
-      const rows = 3, per = Math.ceil(n / 4), cols = Math.ceil(per / rows);
-      const cw = 2 * W.D / cols, ch = W.H / rows, side = Math.min(cw, ch) * .84;
+      // Four walls around the camera, papered with prints in date order. A wall is nearly as tall as
+      // the view at its middle; rows sit close and are justified to the wall's length, each print
+      // filling its cell (a little stretch, the rest cropped), so the room reads edge to edge.
+      W.D = 1.2; W.H = 2 * W.D * TAN * .88; W.yaw = 0; W.yv = .04; W.un = W.ut = 0;
+      const G = .012, L = 2 * W.D, as = byDate.map(i => pool[i].userData.p.aspect);
+      const need = rows => { const h = (W.H - G * (rows - 1)) / rows; return as.reduce((t, a) => t + a * h + G, 0); };
+      let rows = 1;
+      while (rows < 9 && need(rows) > 4 * rows * L) rows++;
+      const h = (W.H - G * (rows - 1)) / rows, S = 4 * rows, tot = need(rows);
+      // share the prints over the strips by length, then stretch each strip to the wall's length
+      const strips = [...Array(S)].map(() => []);
+      let acc = 0;
       byDate.forEach((i, k) => {
-        const u = pool[i].userData, j = Math.floor(k / per), q = k % per;
-        u.wt = true; fit(u, side);
-        u.rj = j; u.ra = -W.D + (q % cols + .5) * cw; u.rb = W.H - (Math.floor(q / cols) + .5) * ch;
-        u.wd = (j / 4) * .3 + (q / per) * .05;
+        const w = as[k] * h;
+        strips[Math.min(S - 1, Math.floor((acc + (w + G) / 2) / tot * S))].push([i, w]); acc += w + G;
+      });
+      strips.forEach((st, si) => {
+        const j = Math.floor(si / rows), q = si % rows, sum = st.reduce((t, [, w]) => t + w, 0);
+        const f = st.length ? (L - G * st.length) / sum : 1;
+        let x = -W.D + G / 2;
+        st.forEach(([i, w]) => {
+          const u = pool[i].userData, ww = w * f;
+          u.wt = true; u.ww = ww; u.wh = h;
+          u.rj = j; u.ra = x + ww / 2; u.rb = W.H - q * (h + G) - h / 2;
+          u.wd = (si / S) * .35;
+          x += ww + G;
+        });
       });
     }
     s.tx = W.cx; s.ty = W.cy; s.tz = worldZ();
@@ -250,9 +264,10 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
   function place(m, u, dt, vw, vh) {
     o.w = u.ww; o.h = u.wh; o.a = 1; o.near = true; o.hov = .03;
     if (W.kind === 'globe') {
-      V.copy(u.gp).applyEuler(E.set(W.rx, W.ry, 0, 'XYZ'));
+      // the globe turns as one body, so a print keeps its place and its uprightness in the mosaic
+      V.copy(u.gp).applyQuaternion(W.q);
       o.x = W.cx + V.x * W.R; o.y = W.cy + V.y * W.R; o.z = V.z * W.R;
-      LOOK.position.set(o.x, o.y, o.z); LOOK.lookAt(o.x + V.x, o.y + V.y, o.z + V.z); QT.copy(LOOK.quaternion);
+      QT.copy(W.q).multiply(u.gq);
       // the front is bright and sharp, the far side a faint memory
       o.a = V.z > 0 ? .45 + .55 * smoothstep(0, .6, V.z) : .1 * (1 + V.z);
       o.near = V.z > -.2; o.hov = .12;
@@ -264,23 +279,6 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
       const fe = Math.max(vw * .42, W.hb * 1.4);          // a phone still shows the neighbours coming
       o.a = 1 - smoothstep(fe, fe + Math.max(vw * .2, W.hb * .6), Math.abs(xs));
       o.near = Math.abs(xs) < vw * .9;
-    } else if (W.kind === 'grain') {
-      // step aside for the pointer on a spring, and breathe a little while standing
-      let tx = 0, ty = 0, push = 0;
-      if (ptr.inside && !W.focus) {
-        const px = s.x + ptr.nx * vw / 2, py = s.y + ptr.ny * vh / 2;
-        const dx = u.gx - px, dy = u.gy - py, d = Math.hypot(dx, dy) || 1e-4;
-        push = d < W.gR ? Math.pow(1 - d / W.gR, 2) : 0;
-        tx = dx / d * push * W.gR * .9; ty = dy / d * push * W.gR * .9;
-      }
-      const h = Math.min(dt, 1 / 30);
-      u.ovx += ((tx - u.ox) * 90 - u.ovx * 11) * h; u.ovy += ((ty - u.oy) * 90 - u.ovy * 11) * h;
-      u.ox += u.ovx * h; u.oy += u.ovy * h;
-      const br = reduced ? 0 : .006;
-      o.x = u.gx + u.ox + Math.sin(W.t * .8 + u.ph) * br; o.y = u.gy + u.oy + Math.cos(W.t * .7 + u.ph) * br; o.z = u.gz;
-      const sq = 1 - Math.min(.3, Math.hypot(u.ox, u.oy) / W.gR * .4);
-      o.w *= sq; o.h *= sq; o.hov = 0;
-      QT.setFromAxisAngle(ZAX, u.gr);
     } else if (W.kind === 'interior') {
       const th = W.yaw + u.rj * Math.PI / 2, sn = Math.sin(th), cs = Math.cos(th);
       // on the wall, facing you
@@ -381,9 +379,8 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
     },
     drag(dx, dy) {
       if (W.on) {
-        if (W.kind === 'grain') return;          // the crowd answers the pointer itself
         worldUnfocus();
-        if (W.kind === 'globe') { W.vy = dx * .005; W.vx = dy * .005; W.ry += dx * .005; W.rx = clamp(W.rx + dy * .005, -1.3, 1.3); }
+        if (W.kind === 'globe') { W.vy = dx * .005; W.vx = dy * .005; turn(dy * .005, dx * .005); }
         if (W.kind === 'drift') { const d = -pxToWorld(dx, s.z); W.off += d; W.ov = d * 60; }
         if (W.kind === 'interior') { const d = dx * .004 * (W.un > .5 ? -1 : 1); W.yaw += d; W.yv = d * 60; }
         return;
@@ -397,7 +394,7 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
       if (W.on) {
         if (W.kind === 'globe') {
           if (zoom) { W.zoom = clamp(W.zoom * Math.exp(-dy * .01), .7, 2.6); s.tz = worldZ(); return; }
-          worldUnfocus(); W.ry += dx * .003; W.rx = clamp(W.rx + dy * .003, -1.3, 1.3); W.vy = dx * .003; W.vx = 0;
+          worldUnfocus(); turn(dy * .003, dx * .003); W.vy = dx * .003; W.vx = 0;
         }
         if (W.kind === 'drift') { worldUnfocus(); const d = pxToWorld(dy || dx, s.z) * .6; W.off += d; W.ov = d * 30; }
         if (W.kind === 'interior') { worldUnfocus(); W.ut = clamp(W.ut + dy * .0016, 0, 1); if (dx) W.yaw += dx * .003; }
@@ -418,7 +415,7 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
     },
     pan(cx, cy) {
       if (W.on) {
-        if (W.kind === 'globe') { W.ry += cx * .35; W.rx = clamp(W.rx - cy * .25, -1.3, 1.3); }
+        if (W.kind === 'globe') turn(-cy * .25, cx * .35);
         if (W.kind === 'drift') W.ov += cx * 1.5;
         if (W.kind === 'interior') { if (cx) W.yaw += cx * Math.PI / 4; if (cy) W.ut = cy < 0 ? 1 : 0; }
         return;
@@ -484,8 +481,7 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
         const free = !ptr.down && !W.focus, mv = reduced ? 0 : 1;
         if (W.kind === 'globe' && free) {
           // it keeps turning on its own; a drag hands it a spin that settles back to the drift
-          W.ry += W.vy * dt * mv; W.vy = damp(W.vy, .1, 1.2, dt); W.vx = damp(W.vx, 0, 3, dt);
-          W.rx = clamp(W.rx + W.vx * dt * 60 * .2, -1.3, 1.3);
+          turn(W.vx * dt * 60 * .2 * mv, W.vy * dt * mv); W.vy = damp(W.vy, .1, 1.2, dt); W.vx = damp(W.vx, 0, 3, dt);
         }
         if (W.kind === 'drift' && free) { W.off += W.ov * dt * mv; W.ov = damp(W.ov, .12, .8, dt); }
         if (W.kind === 'interior') {
@@ -510,7 +506,7 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
       // where the pile gathers: the front print's place, a little behind it
       const box = rolling ? deckBox() : null;
       const Lw = box ? pxToWorld(box.L, s.z) : 0;
-      const [pileX, pileY] = box ? toWorld(box.x0 + box.L / 2, box.cy) : [0, 0];
+      const [pileX, pileY] = box ? toWorld(box.x0 + box.L / 2, box.yb - box.L / 2) : [0, 0];
       const depth = Lw * .16;
 
       for (const m of pool) {
@@ -532,7 +528,7 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
         }
         let sx = u.w * sc, sy = u.h * sc, inShape = 0;
         Q0.setFromEuler(E.set(0, 0, rz)); m.quaternion.copy(Q0);
-        U.uWave.value = 0; U.uGrain.value = 0;
+        U.uWave.value = 0;
         if (inW && u.wt) {
           const e = inOut(clamp((W.k - u.wd) / .65, 0, 1));
           place(m, u, dt, vw, vh);
@@ -554,7 +550,6 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
           keep *= 1 + (ga - 1) * e; inShape = e;
           const still = m === W.focus ? 1 - W.f : 1;
           if (W.kind === 'drift') U.uWave.value = e * still * (reduced ? 0 : 1);
-          if (W.kind === 'grain') U.uGrain.value = e * still;
           if (o.near || m === W.focus) { u.p.lastNear = s.t; u.p.evicted = false; request(u.p); }
         } else if (inW) keep *= 1 - smoothstep(0, .3, W.k);
         m.position.set(px, py, pz);
@@ -568,6 +563,10 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
         u.hover = damp(u.hover, u.isHover && !s.focus && !W.focus && !rolling ? 1 : 0, 10, dt);
         const hs = 1 + u.hover * (inShape ? o.hov * inShape : .015);
         m.scale.set(sx * hs, sy * hs, 1);
+        // when the shape asks for another aspect than the print's, stretch it a little and crop the rest
+        const ra = (sx / sy) / u.p.aspect, st = clamp(ra, 1 / 1.12, 1.12), rest = ra / st;
+        if (rest > 1) U.uCrop.value.set(1, 1 / rest, 0, (1 - 1 / rest) / 2);
+        else U.uCrop.value.set(rest, 1, (1 - rest) / 2, 0);
       }
 
       // the deck: prints behind rise and fade into the paper; the one you leave comes toward you
@@ -587,8 +586,8 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
             U.uColor.value.set(p.color || '#808080'); U.uTex.value = p.ready ? 1 : 0; U.uAlpha.value = 0;
           }
           const d = j - r.c;
-          const wpx = p.aspect >= 1 ? box.L : box.L * p.aspect, hpx = p.aspect >= 1 ? box.L / p.aspect : box.L;
-          let [X, Y] = toWorld(box.x0 + wpx / 2, box.cy), Z = 0, rx = 0, rz = 0, a = 1;
+          const wpx = Math.min(box.w, box.h * p.aspect), hpx = wpx / p.aspect;
+          let [X, Y] = toWorld(box.x0 + wpx / 2, box.yb - hpx / 2), Z = 0, rx = 0, rz = 0, a = 1;
           if (d >= 0) {
             X += pxToWorld(d * 8, s.z); Y += pxToWorld(d * 18, s.z); Z = -d * depth;
             rz = m.userData.jr * Math.min(d, 1);

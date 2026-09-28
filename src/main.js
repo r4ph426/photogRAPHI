@@ -56,43 +56,35 @@ function buildRolls() {
 let rollCount = 0;
 
 /* ---------- worlds: tags that open a place of their own ---------- */
+// Phosphor icons (MIT, phosphoricons.com), regular weight: its stroke sits closest to Switzer 400.
 const ICON = {
-  rolls: '<rect x="1.5" y="3.5" width="6" height="5"/><path d="M3.5 1.5h5v5"/>',
-  people: '<circle cx="5" cy="5" r="3.8"/><ellipse cx="5" cy="5" rx="1.7" ry="3.8"/><path d="M1.2 5h7.6"/>',
-  water: '<path d="M.8 3.6c1.4-1.2 2.8 1.2 4.2 0s2.8 1.2 4.2 0M.8 6.8c1.4-1.2 2.8 1.2 4.2 0s2.8 1.2 4.2 0"/>',
-  crowded: '<circle cx="2.2" cy="2.8" r=".9"/><circle cx="5.1" cy="2.2" r=".9"/><circle cx="7.9" cy="3" r=".9"/><circle cx="3.5" cy="6" r=".9"/><circle cx="6.6" cy="6.3" r=".9"/><circle cx="5" cy="8.8" r=".7"/>',
-  interior: '<path d="M6 8.5h2.5v-7h-7v7H4"/>',
+  rolls: 'M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM40,88h80v80H40Zm96-16V56h32V72Zm-16,0H88V56h32Zm0,112v16H88V184Zm16,0h32v16H136Zm0-16V88h80v80Zm80-96H184V56h32ZM72,56V72H40V56ZM40,184H72v16H40Zm176,16H184V184h32v16Z',
+  people: 'M128,24h0A104,104,0,1,0,232,128,104.12,104.12,0,0,0,128,24Zm88,104a87.61,87.61,0,0,1-3.33,24H174.16a157.44,157.44,0,0,0,0-48h38.51A87.61,87.61,0,0,1,216,128ZM102,168H154a115.11,115.11,0,0,1-26,45A115.27,115.27,0,0,1,102,168Zm-3.9-16a140.84,140.84,0,0,1,0-48h59.88a140.84,140.84,0,0,1,0,48ZM40,128a87.61,87.61,0,0,1,3.33-24H81.84a157.44,157.44,0,0,0,0,48H43.33A87.61,87.61,0,0,1,40,128ZM154,88H102a115.11,115.11,0,0,1,26-45A115.27,115.27,0,0,1,154,88Zm52.33,0H170.71a135.28,135.28,0,0,0-22.3-45.6A88.29,88.29,0,0,1,206.37,88ZM107.59,42.4A135.28,135.28,0,0,0,85.29,88H49.63A88.29,88.29,0,0,1,107.59,42.4ZM49.63,168H85.29a135.28,135.28,0,0,0,22.3,45.6A88.29,88.29,0,0,1,49.63,168Zm98.78,45.6a135.28,135.28,0,0,0,22.3-45.6h35.66A88.29,88.29,0,0,1,148.41,213.6Z',
+  water: 'M222.16,177.25a8,8,0,0,1-1,11.25c-17.36,14.39-32.86,19.5-47,19.5-18.58,0-34.82-8.82-49.93-17-25.35-13.76-47.24-25.64-79.07.74a8,8,0,1,1-10.22-12.31c40.17-33.28,70.32-16.92,96.93-2.48,25.35,13.75,47.24,25.63,79.07-.74A8,8,0,0,1,222.16,177.25Zm-11.27-57c-31.83,26.38-53.72,14.5-79.07.74-26.61-14.43-56.76-30.79-96.93,2.49a8,8,0,0,0,10.22,12.31c31.83-26.38,53.72-14.5,79.07-.74,15.11,8.19,31.35,17,49.93,17,14.14,0,29.64-5.11,47-19.5a8,8,0,1,0-10.22-12.31ZM45.11,79.8c31.83-26.37,53.72-14.49,79.07-.74,15.11,8.2,31.35,17,49.93,17,14.14,0,29.64-5.12,47-19.5a8,8,0,1,0-10.22-12.31c-31.83,26.38-53.72,14.5-79.07.74C105.21,50.58,75.06,34.22,34.89,67.5A8,8,0,1,0,45.11,79.8Z',
+  interior: 'M232,216H208V40a16,16,0,0,0-16-16H64A16,16,0,0,0,48,40V216H24a8,8,0,0,0,0,16H232a8,8,0,0,0,0-16Zm-40,0H176V40h16ZM64,40h96V216H64Zm80,92a12,12,0,1,1-12-12A12,12,0,0,1,144,132Z',
 };
-const WORLD = { people: 'globe', water: 'drift', crowded: 'grain', interior: 'interior' };
+const WORLD = { people: 'globe', water: 'drift', interior: 'interior' };
 const isWorld = t => t in ICON;
 const mode = t => WORLD[t] || null;
 
 /* ---------- tags ---------- */
-const top = $('#top'), tagsEl = $('#tags'), moreBtn = $('#more'), filterBtn = $('#filterBtn');
+const top = $('#top'), nav = $('#tagwrap'), tagsEl = $('#tags'), filterBtn = $('#filterBtn');
 function renderTags() {
   const counts = new Map();
   photos.forEach(p => p.tags.forEach(t => counts.set(t, (counts.get(t) || 0) + 1)));
   const sorted = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  // the active tag always sits right after "all", so it stays visible when the row is collapsed
-  const rows = [['all', photos.length], ...(rollCount ? [['rolls', rollCount]] : []), ...sorted.filter(([t]) => t === tag), ...sorted.filter(([t]) => t !== tag)];
-  tagsEl.innerHTML = rows.map(([t, c]) => isWorld(t)
-    ? `<li><button class="world" data-tag="${t}" aria-pressed="${t === tag}" aria-label="${t} ${c}, opens its own view"><span class="wl">${[...t].map((ch, i) => `<span style="--i:${i}">${ch}</span>`).join('')}</span><svg class="wi" viewBox="0 0 10 10" aria-hidden="true">${ICON[t]}</svg><span class="c">${c}</span></button></li>`
-    : `<li><button data-tag="${t}" aria-pressed="${t === tag}">${t}<span class="c">${c}</span></button></li>`).join('');
-  fitTags();
-}
-function fitTags() {
-  const items = [...tagsEl.children];
-  if (!items.length) return;
-  const open = top.classList.contains('open');
-  const hidden = open ? 0 : items.filter(li => li.offsetTop > items[0].offsetTop).length;
-  moreBtn.hidden = !open && !hidden;
-  moreBtn.textContent = open ? 'less' : `+ ${hidden} more`;
+  // three groups, set apart by space: all, then the tags that open a view of their own, then the rest
+  const worlds = [...(rollCount ? [['rolls', rollCount]] : []), ...sorted.filter(([t]) => isWorld(t))];
+  const rows = [['all', photos.length], ...worlds, ...sorted.filter(([t]) => !isWorld(t))];
+  const first = new Set([worlds[0]?.[0], sorted.find(([t]) => !isWorld(t))?.[0]]);
+  tagsEl.innerHTML = rows.map(([t, c]) => `<li${first.has(t) ? ' class="g"' : ''}>` + (isWorld(t)
+    ? `<button class="world" data-tag="${t}" aria-pressed="${t === tag}" aria-label="${t} ${c}, opens its own view"><span class="wl">${[...t].map((ch, i) => `<span style="--i:${i}">${ch}</span>`).join('')}</span><svg class="wi" viewBox="0 0 256 256" aria-hidden="true"><path d="${ICON[t]}"/></svg><span class="c">${c}</span></button>`
+    : `<button data-tag="${t}" aria-pressed="${t === tag}"><span class="wl">${t}</span><span class="c">${c}</span></button>`) + '</li>').join('');
 }
 function setOpen(open) {
   top.classList.toggle('open', open);
   filterBtn.setAttribute('aria-expanded', open);
   filterBtn.textContent = open ? 'close' : 'filter';
-  fitTags();
 }
 function setTag(t) {
   if (t === 'rolls' || t.startsWith('rolls/')) return enterRolls(t.slice(6));
@@ -110,7 +102,6 @@ function setTag(t) {
   try { history.replaceState(null, '', t === 'all' ? location.pathname : '#' + encodeURIComponent(t)); } catch (e) {}
 }
 tagsEl.addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTag(b.dataset.tag); });
-moreBtn.addEventListener('click', () => setOpen(!top.classList.contains('open')));
 filterBtn.addEventListener('click', () => setOpen(!top.classList.contains('open')));
 
 function enterRolls(key, from) {
@@ -165,9 +156,9 @@ soundBtn.addEventListener('click', () => { setSound(!soundOn()); soundBtn.setAtt
 $('#toRoll').addEventListener('click', () => enterRolls(null, world.focused));
 
 /* ---------- the glass lens that glides along the bar ---------- */
-// A pill of glass follows the pointer from button to button, bending what is behind its rim.
-// It sits outside the bar's difference blend, so it can carry real colour: world tags get red glass.
-const lens = $('#lens');
+// A pill of milky glass follows the pointer from button to button, bending what is behind its rim.
+// One lives in the side nav and glides down the list, one in the header for the theme switch.
+const lens = $('#lens'), navLens = $('#navLens');
 const fine = matchMedia('(hover: hover) and (pointer: fine)');
 const chromium = !!navigator.userAgentData?.brands?.some(b => /Chromium/.test(b.brand));
 if (chromium) {
@@ -187,34 +178,56 @@ if (chromium) {
   $('#glassMap').setAttribute('href', c.toDataURL());
   lens.classList.add('refract');
 }
-let lensOn = false;
+let lensOn = null, lit = null;
 function lensTo(b) {
   if (!b || !fine.matches) return lensOff();
-  const r = b.getBoundingClientRect(), w = Math.round(r.width + 22), h = Math.round(r.height + 12);
-  if (!lensOn) { lens.style.transition = 'none'; }
-  lens.style.width = w + 'px'; lens.style.height = h + 'px';
-  lens.style.transform = `translate3d(${Math.round(r.left - 11)}px, ${Math.round(r.top - 6)}px, 0)`;
-  lens.classList.toggle('world', b.classList.contains('world'));
+  const inNav = nav.contains(b), L = inNav ? navLens : lens;
+  if (lensOn && lensOn !== L) lensOff();
+  const r = b.getBoundingClientRect(), o = inNav ? nav.getBoundingClientRect() : { left: 0, top: 0 };
+  const px = 0, py = 0, w = Math.round(r.width), h = Math.round(r.height);   // the glass covers the item's chip
+  if (lensOn !== L) L.style.transition = 'none';
+  L.style.width = w + 'px'; L.style.height = h + 'px';
+  L.style.transform = `translate3d(${Math.round(r.left - o.left - px)}px, ${Math.round(r.top - o.top - py)}px, 0)`;
   if (chromium) { const m = $('#glassMap'); m.setAttribute('width', w); m.setAttribute('height', h); }
-  if (!lensOn) { lens.offsetWidth; lens.style.transition = ''; }
-  lens.classList.add('on'); lensOn = true;
+  if (lensOn !== L) { L.offsetWidth; L.style.transition = ''; }
+  L.classList.add('on'); lensOn = L;
+  // the glass is always light, so whatever sits on it reads in dark ink, in either theme
+  lit?.classList.remove('lit'); lit = b; b.classList.add('lit');
 }
-function lensOff() { lens.classList.remove('on'); lensOn = false; }
-top.addEventListener('pointerover', e => lensTo(e.target.closest('.tags button, .more, .theme button')));
+function lensOff() { lens.classList.remove('on'); navLens.classList.remove('on'); lensOn = null; lit?.classList.remove('lit'); lit = null; }
+const LENSED = '.tags button';   // the theme toggle has its own glass, the thumb
+// the nav sits inside the header in the markup, so the header hears both
+top.addEventListener('pointerover', e => lensTo(e.target.closest(LENSED)));
 top.addEventListener('pointerleave', lensOff);
-top.addEventListener('focusin', e => { if (e.target.matches(':focus-visible')) lensTo(e.target.closest('.tags button, .more, .theme button')); });
+top.addEventListener('focusin', e => { if (e.target.matches(':focus-visible')) lensTo(e.target.closest(LENSED)); });
 top.addEventListener('focusout', lensOff);
 addEventListener('resize', lensOff);
 
 /* ---------- theme ---------- */
-const themeBtns = document.querySelectorAll('[data-theme-set]');
+const themeBtns = document.querySelectorAll('[data-theme-set]'), thumb = $('#thumb');
+// the thumb sits under the active word; the first placement and font swaps land without a slide
+function placeThumb(slide) {
+  const a = [...themeBtns].find(b => b.dataset.themeSet === root.dataset.theme);
+  if (!a) return;
+  if (!slide) thumb.style.transition = 'none';
+  thumb.style.width = a.offsetWidth + 'px'; thumb.style.setProperty('--x', a.offsetLeft + 'px');
+  if (!slide) { thumb.offsetWidth; thumb.style.transition = ''; }
+}
 function applyTheme(t, save) {
+  const slide = !!root.dataset.theme && thumb.style.width !== '';
   root.dataset.theme = t;
   themeBtns.forEach(b => b.setAttribute('aria-pressed', b.dataset.themeSet === t));
+  placeThumb(slide);
   world.setBackground(getComputedStyle(root).getPropertyValue('--paper').trim());
   if (save) try { localStorage.setItem('photographi-theme', t); } catch (e) {}
 }
-themeBtns.forEach(b => b.addEventListener('click', () => applyTheme(b.dataset.themeSet, true)));
+// it is a toggle: pressing the word that is already on flips to the other one
+themeBtns.forEach(b => b.addEventListener('click', () => {
+  const t = b.dataset.themeSet === root.dataset.theme ? (t0 => t0 === 'dark' ? 'light' : 'dark')(root.dataset.theme) : b.dataset.themeSet;
+  applyTheme(t, true);
+}));
+document.fonts?.ready.then(() => placeThumb(false));
+addEventListener('resize', () => placeThumb(false));
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
   let saved = null; try { saved = localStorage.getItem('photographi-theme'); } catch (err) {}
   if (!saved) applyTheme(e.matches ? 'dark' : 'light');
@@ -252,7 +265,6 @@ function setHint() {
     const years = filtered().map(p => String(p.date).slice(0, 4)).filter(Boolean).sort();
     hint.textContent = `Drag to turn it. ${years[0]} at the top, ${years.at(-1)} at the bottom. Click a face.`;
   } else if (m === 'drift') hint.textContent = 'It drifts on its own. Drag or scroll to row along. Click a frame.';
-  else if (m === 'grain') hint.textContent = 'Move through the crowd, it makes room. Click a face.';
   else if (m === 'interior') hint.textContent = 'Drag to turn around. Scroll to fold the room open into its plan.';
   else { hint.textContent = hintText; return; }
   hint.classList.remove('gone');
@@ -359,7 +371,7 @@ addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; dro
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', e => { e.preventDefault(); dragDepth = 0; drop.classList.remove('on'); useFiles(e.dataTransfer.files); });
 
-addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); world.resize(); fitTags(); });
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); world.resize(); });
 addEventListener('hashchange', () => setTag(decodeURIComponent(location.hash.slice(1)) || 'all'));
 
 /* ---------- loop ---------- */

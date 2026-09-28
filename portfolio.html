@@ -19,12 +19,13 @@
 <header class="bar top" id="top">
   <i class="lens" id="lens" aria-hidden="true"></i>
   <a class="mark" href="index.html" id="home" aria-label="photogRAPHI, back to the welcome"><span class="t">photog</span>RAPHI</a>
-  <div class="tagwrap" id="tagwrap">
+  <nav class="tagwrap" id="tagwrap" aria-label="Tags">
+    <i class="lens" id="navLens" aria-hidden="true"></i>
     <ul class="tags" id="tags" aria-label="Filter by tag"></ul>
-    <button class="more" id="more" hidden></button>
-  </div>
+  </nav>
   <button class="filter" id="filterBtn" aria-expanded="false" aria-controls="tagwrap">filter</button>
   <div class="theme" role="group" aria-label="Theme">
+    <i class="thumb" id="thumb" aria-hidden="true"></i>
     <button data-theme-set="light">light</button>
     <button data-theme-set="dark">dark</button>
   </div>
@@ -43,11 +44,11 @@
 </section>
 
 <section class="info roll" id="roll" aria-live="polite" aria-label="Roll">
-  <p class="i-meta"><span id="rName"></span><span class="r-count" id="rCount"></span><span id="rStock"></span><span class="i-sub" id="rDev"></span><span class="i-sub" id="rDate"></span></p>
-  <p class="i-nav"><button id="rPrevF" aria-label="Previous frame"><span class="ic" aria-hidden="true">←</span> prev</button><button id="rNextF" aria-label="Next frame">next <span class="ic" aria-hidden="true">→</span></button></p>
-  <p class="i-nav"><button id="rPrev"><span class="ic" aria-hidden="true">←</span> prev roll</button><button id="rNext">next roll <span class="ic" aria-hidden="true">→</span></button></p>
-  <p class="r-hint">Scroll or use the arrow keys to leaf through the roll.</p>
   <p class="i-num" id="rNum"></p>
+  <p class="i-nav r-frames"><button id="rPrevF" aria-label="Previous frame"><span class="ic" aria-hidden="true">←</span> prev</button><button id="rNextF" aria-label="Next frame">next <span class="ic" aria-hidden="true">→</span></button></p>
+  <p class="r-hint">Scroll or use the arrow keys to leaf through the roll.</p>
+  <p class="i-meta"><span id="rName"></span><span class="r-count" id="rCount"></span><span id="rStock"></span><span class="i-sub" id="rDev"></span><span class="i-sub" id="rDate"></span></p>
+  <p class="i-nav r-rolls"><button id="rPrev"><span class="ic" aria-hidden="true">←</span> prev roll</button><button id="rNext">next roll <span class="ic" aria-hidden="true">→</span></button></p>
 </section>
 <p class="r-top"><button id="rSound" aria-pressed="true">sound</button><button id="rClose">close</button></p>
 
