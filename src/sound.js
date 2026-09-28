@@ -36,6 +36,15 @@ export function click() {
   tick(t + .032, .06, 1800);
 }
 
+// a stack of prints set down on a table: low and soft, twice
+export function thud() {
+  if (!on || !ctx || ctx.state !== 'running') return;
+  const t = ctx.currentTime;
+  last = t;
+  tick(t, .16, 420);
+  tick(t + .07, .09, 260);
+}
+
 export const soundOn = () => on;
 export function setSound(v) {
   on = v;

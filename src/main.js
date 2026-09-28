@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { developPlaceholders, fileToPhoto } from './placeholders.js';
 import { createCanvas } from './canvas.js';
-import { unlock, click as tick, soundOn, setSound } from './sound.js';
+import { unlock, click as tick, thud, soundOn, setSound } from './sound.js';
 
 const $ = s => document.querySelector(s);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -46,11 +46,24 @@ const filtered = () => tag === 'all' ? photos : photos.filter(p => p.tags.includ
 // "12A" sits between 12 and 13
 const frameNo = f => (parseInt(f, 10) || 0) + (/a$/i.test(f) ? .5 : 0);
 let rollSeq = [], gridTag = 'all';
+// Every roll in shooting order, one after the other. Between two rolls sits a divider: a pause
+// where the stack you went through is put down and the next one waits under its title.
 function buildRolls() {
-  rollSeq = photos.filter(p => p.roll != null).sort((a, b) => a.roll - b.roll || frameNo(a.frame) - frameNo(b.frame) || (a.version || 1) - (b.version || 1));
+  // A roll is its full name (number, year, stock: "18-2016-hp5at800"), not its number: the
+  // numbers start over every year. Rolls follow each other in the order they were shot.
+  const rid = p => p.key ? p.key.replace(/-[^-]+$/, '') : String(p.roll);
+  const shot = photos.filter(p => p.roll != null).sort((a, b) =>
+    String(a.date).localeCompare(String(b.date)) || a.roll - b.roll || rid(a).localeCompare(rid(b)) ||
+    frameNo(a.frame) - frameNo(b.frame) || (a.version || 1) - (b.version || 1));
   const by = new Map();
-  rollSeq.forEach(p => { if (!by.has(p.roll)) by.set(p.roll, []); by.get(p.roll).push(p); });
+  shot.forEach(p => { const k = rid(p); if (!by.has(k)) by.set(k, []); by.get(k).push(p); });
   by.forEach(list => list.forEach((p, i) => { p.inRoll = i; p.rollLen = list.length; }));
+  rollSeq = [];
+  [...by.values()].forEach((list, k) => {
+    const f = list[0];
+    if (k) rollSeq.push({ divider: true, roll: f.roll, len: list.length, stock: f.stock, dev: f.dev, date: f.date, first: f });
+    rollSeq.push(...list);
+  });
   return by.size;
 }
 let rollCount = 0;
@@ -128,6 +141,21 @@ function leaveRolls() {
   try { history.replaceState(null, '', tag === 'all' ? location.pathname : '#' + encodeURIComponent(tag)); } catch (e) {}
 }
 function onRollFrame(i, p) {
+  document.body.classList.toggle('at-divider', !!p.divider);
+  if (p.divider) {
+    // the old stack goes down on the table; the panel already speaks of the one waiting
+    thud();
+    $('#rName').textContent = `Roll ${p.roll}`;
+    $('#rCount').textContent = `${p.len} photos`;
+    $('#rStock').textContent = p.stock;
+    $('#rDev').textContent = p.dev ? p.dev[0].toUpperCase() + p.dev.slice(1) : '';
+    $('#rDate').textContent = formatDate(p.date);
+    $('#rNum').textContent = '';
+    $('#bT').textContent = `Roll ${p.roll}`;
+    $('#bM').textContent = [formatDate(p.date), p.stock, `${p.len} photos`].filter(Boolean).join(' · ');
+    try { history.replaceState(null, '', '#rolls/' + encodeURIComponent(p.first.key)); } catch (e) {}
+    return;
+  }
   tick();
   $('#rName').textContent = `Roll ${p.roll}`;
   $('#rCount').textContent = `${String(p.inRoll + 1).padStart(String(p.rollLen).length, '0')} / ${p.rollLen}`;
@@ -137,16 +165,13 @@ function onRollFrame(i, p) {
   $('#rNum').textContent = p.frame;
   try { history.replaceState(null, '', '#rolls/' + encodeURIComponent(p.key)); } catch (e) {}
 }
-// the first frame of the next roll, or of the previous one
+// the first frame of the next roll, or of the previous one (a divider counts to the roll after it)
 function rollJump(dir) {
-  let i = world.rollAt;
-  const start = j => { while (j > 0 && rollSeq[j - 1].roll === rollSeq[j].roll) j--; return j; };
-  if (dir > 0) { const r0 = rollSeq[i].roll; while (i < rollSeq.length - 1 && rollSeq[i].roll === r0) i++; }
-  else { i = start(i); if (i > 0) i = start(i - 1); }
-  world.rollTo(i);
+  const firsts = rollSeq.map((p, j) => p.inRoll === 0 ? j : -1).filter(j => j >= 0);
+  const at = world.rollAt + (rollSeq[world.rollAt]?.divider ? 1 : 0);
+  const k = firsts.findLastIndex(j => j <= at);
+  world.rollTo(firsts[clamp(k + dir, 0, firsts.length - 1)]);
 }
-$('#rPrevF').addEventListener('click', () => world.rollTo(world.rollAt - 1));
-$('#rNextF').addEventListener('click', () => world.rollTo(world.rollAt + 1));
 $('#rPrev').addEventListener('click', () => rollJump(-1));
 $('#rNext').addEventListener('click', () => rollJump(1));
 $('#rClose').addEventListener('click', leaveRolls);
@@ -253,8 +278,6 @@ function showInfo(p, i, n) {
   $('#toRoll').parentElement.hidden = p.roll == null || !rollSeq.length;
 }
 $('#iTags').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { world.escape(); setTag(b.dataset.tag); } });
-$('#prev').addEventListener('click', () => world.step(-1));
-$('#next').addEventListener('click', () => world.step(1));
 $('#close').addEventListener('click', () => world.escape());
 
 /* ---------- input ---------- */
@@ -270,6 +293,37 @@ function setHint() {
   hint.classList.remove('gone');
 }
 const touched = () => hint.classList.add('gone');
+
+/* ---------- the pointer in a detail view ---------- */
+// Over the picture the pointer becomes one oversized mark: the left third of the photo window goes
+// back, the middle closes, the right goes on. The strokes morph from one mark to the next.
+const cur = $('#cur'), curW = $('#curW'), curP = $('#curP'), curL = $('#curL');
+const ZONES = {
+  prev: { d: 'M56 32L8 32M26 14L8 32L26 50', label: 'previous' },
+  close: { d: 'M14 14L50 50M50 14L32 32L14 50', label: 'close' },
+  next: { d: 'M8 32L56 32M38 14L56 32L38 50', label: 'next' },
+};
+const inDetail = () => !!world.focused || world.rolling;
+function zoneAt(x) {
+  if (!inDetail()) return null;
+  const x0 = frame.l.offsetWidth, x1 = innerWidth - frame.r.offsetWidth, t = (x - x0) / (x1 - x0);
+  return t < 1 / 3 ? 'prev' : t > 2 / 3 ? 'next' : 'close';
+}
+function act(z) {
+  if (z === 'prev') world.rolling ? world.rollTo(world.rollAt - 1) : world.step(-1);
+  else if (z === 'next') world.rolling ? world.rollTo(world.rollAt + 1) : world.step(1);
+  else if (z === 'close') world.rolling ? leaveRolls() : world.escape();
+}
+const cp = { x: innerWidth / 2, y: innerHeight / 2, tx: innerWidth / 2, ty: innerHeight / 2, over: false, z: null };
+function curTo(z) {
+  if (z === cp.z) return;
+  cp.z = z;
+  if (!z) return;
+  curP.style.d = `path("${ZONES[z].d}")`; curP.setAttribute('d', ZONES[z].d);
+  curL.textContent = ZONES[z].label;
+}
+el.addEventListener('pointermove', e => { cp.tx = e.clientX; cp.ty = e.clientY; cp.over = true; });
+el.addEventListener('pointerleave', () => { cp.over = false; });
 const setNdc = e => { ptr.nx = e.clientX / innerWidth * 2 - 1; ptr.ny = -(e.clientY / innerHeight) * 2 + 1; };
 const pdist = () => { const [a, b] = [...pointers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
 
@@ -304,7 +358,8 @@ function endPointer(e) {
   if (pointers.size) return;
   ptr.down = false; el.classList.remove('drag');
   if (e.type === 'pointerup' && ptr.moved <= 5) {
-    if (world.rolling) world.rollTo(world.rollAt + 1);   // a tap leafs on
+    const z = zoneAt(e.clientX);
+    if (z) act(z);                                       // in a detail view: back, close or on
     else { setNdc(e); world.click(world.pick()); }
   }
   world.up();
@@ -376,11 +431,21 @@ addEventListener('hashchange', () => setTag(decodeURIComponent(location.hash.sli
 
 /* ---------- loop ---------- */
 const clock = new THREE.Clock();
+// The caption of the photo under the pointer sits on the photo itself, along its lower edge: when
+// it was taken in the left corner, the film and how it was developed in the right.
 let lastHit = null, capP;
-function setCaption(p) {
-  if (p === capP) return; capP = p;
-  $('#capF').textContent = p ? `Frame ${p.frame}` : '';
-  $('#capS').textContent = p ? p.stock : '';
+const cap = $('#cap');
+function setCaption(p, m) {
+  if (p !== capP) {
+    capP = p;
+    $('#capD').textContent = p ? formatDate(p.date) : '';
+    $('#capS').textContent = p ? [p.stock, p.dev].filter(Boolean).join(', ') : '';
+  }
+  cap.classList.toggle('on', !!p);
+  if (!p) return;
+  const r = world.screenRect(m), x0 = Math.max(r.x0, 0), x1 = Math.min(r.x1, innerWidth);
+  cap.style.width = Math.max(0, Math.round(x1 - x0 - 24)) + 'px';
+  cap.style.transform = `translate3d(${Math.round(x0 + 12)}px, ${Math.round(Math.min(r.y1, innerHeight - 52) - 12)}px, 0) translateY(-100%)`;   // stays clear of the footer
 }
 function loop() {
   requestAnimationFrame(loop);
@@ -393,7 +458,15 @@ function loop() {
     lastHit = hit;
   }
   el.classList.toggle('point', !!hit);
-  setCaption(hit?.userData.p || null);
+  // the oversized pointer trails the real one a touch, and only shows over the picture
+  const show = fine.matches && cp.over && inDetail() && !(ptr.down && ptr.moved > 5);
+  document.body.classList.toggle('detail', inDetail() && fine.matches);
+  if (show) curTo(zoneAt(cp.tx));
+  cur.classList.toggle('on', show); curW.classList.toggle('on', show);
+  const k = 1 - Math.exp(-dt * 22);
+  cp.x += (cp.tx - cp.x) * k; cp.y += (cp.ty - cp.y) * k;
+  cur.style.transform = curW.style.transform = `translate3d(${cp.x.toFixed(1)}px, ${cp.y.toFixed(1)}px, 0)`;
+  setCaption(hit?.userData.p || null, hit);
   renderer.render(world.scene, world.cam);
 }
 

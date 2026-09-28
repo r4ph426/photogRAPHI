@@ -154,8 +154,15 @@ ul { list-style: none; }
 .top.open .tags { height: auto; }
 body.focused .bottom { opacity: 0; pointer-events: none; }
 
-.cap { grid-column: 1 / 5; font-variant-numeric: tabular-nums; }
-.cap span + span { margin-left: 12px; }
+/* the caption of the photo under the pointer, in red along the photo's lower edge: date left,
+   film right */
+.cap {
+  position: fixed; left: 0; top: 0; z-index: 2; pointer-events: none; white-space: nowrap;
+  display: flex; justify-content: space-between; align-items: flex-end; gap: 12px;
+  color: var(--signal); font-variant-numeric: tabular-nums; opacity: 0; transition: opacity .18s var(--ease);
+}
+.cap.on { opacity: 1; }
+.cap span:last-child { text-align: right; overflow: hidden; text-overflow: ellipsis; }
 .hint { grid-column: 5 / 10; transition: opacity .6s var(--ease); }
 .hint.gone { opacity: 0; }
 .scans { grid-column: 11 / 13; }
@@ -168,6 +175,19 @@ body.focused .bottom { opacity: 0; pointer-events: none; }
 .f-l { top: 0; bottom: 0; left: 0; width: var(--fl); transform: translateX(-100%); }
 .f-r { top: 0; bottom: 0; right: 0; width: var(--m); transform: translateX(100%); }
 body.focused .frame i { transform: none; }
+
+/* the pointer in a detail view: one oversized mark in signal red, with its word below */
+.cur { position: fixed; left: 0; top: 0; z-index: 6; pointer-events: none; margin: -72px 0 0 -72px; width: 144px; }
+/* the word hangs under the mark, in the same red */
+.cur-w { margin: 78px 0 0 -72px; text-align: center; }
+.cur-i, .cur-l { opacity: 0; transform: scale(.6); transition: opacity .2s var(--ease), transform .35s cubic-bezier(.3, 1.35, .5, 1); }
+.cur.on .cur-i, .cur.on .cur-l { opacity: 1; transform: none; }
+.cur-i { width: 144px; height: 144px; overflow: visible; }
+.cur-i path { fill: none; stroke: var(--signal); stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; transition: d .35s cubic-bezier(.3, 1.2, .5, 1); }
+/* its word is plain type like the rest of the page */
+.cur-l { display: inline-block; font-size: 14px; color: var(--signal); white-space: nowrap; }
+body.detail #stage canvas, body.detail #stage canvas.point { cursor: none; }
+@media (prefers-reduced-motion: reduce) { .cur-i path { transition: none; } }
 
 .info {
   position: fixed; z-index: 4; left: var(--m); top: calc(var(--top) + 24px); bottom: var(--bot);
@@ -183,27 +203,52 @@ body.rolling .roll { opacity: 1; transform: none; pointer-events: auto; transiti
 body.rolling .bottom { opacity: 0; pointer-events: none; }
 body.rolling #stage canvas { cursor: pointer; }
 .roll .r-count { font-variant-numeric: tabular-nums; color: var(--grey); }
-/* the frame number stands large at the top; the roll, its film and date sit at the bottom with the
-   way to the next roll; the way through the frames hangs under the print */
-.roll .i-num { margin: -.14em 0 0; font-size: clamp(6rem, 13vw, 14rem); }
-.roll .i-meta { margin-top: auto; }
+/* Every detail view, a single photo or the roll, is laid out the same: the frame number large at
+   the top; the facts at the bottom with the way onward (next roll, the whole roll); close top right.
+   The way through the photos is the picture itself: its left, middle and right thirds. */
+.info .i-num { margin: -.14em 0 0; font-size: clamp(6rem, 13vw, 14rem); }
+.info .i-meta { margin-top: auto; }
+.info button:hover { color: var(--signal); }
+/* the one line of help sits quietly at the bottom, centred under the picture, on the line of the
+   panel's bottom row */
+.r-hint { color: color-mix(in srgb, var(--grey) 55%, var(--paper)); }
 @media (min-width: 601px) {
-  /* the deck stands on a baseline 48px above the frame's bottom edge; the frame nav sits under it */
-  .roll .r-frames { position: fixed; left: var(--fl); top: calc(100vh - var(--bot) - 30px); }
+  .info .r-hint {
+    position: fixed; bottom: var(--bot); transform: translateX(-50%); text-align: center;
+    left: calc(var(--fl) + (100vw - var(--fl) - var(--m)) / 2); width: max-content;
+    max-width: calc(100vw - var(--fl) - var(--m) - 40px);
+  }
 }
-.roll button:hover, .i-roll button:hover { color: var(--signal); }
-.r-hint { color: var(--grey); }
 /* the arrows carry the signal red, like the + on the welcome page */
-.roll .ic { color: var(--signal); }
+.info .ic { color: var(--signal); }
 /* sound and close sit top right, apart from the way through the roll */
 .r-top {
   position: fixed; z-index: 5; top: calc(var(--top) + 24px); right: var(--m); display: flex; gap: 20px;
   opacity: 0; pointer-events: none; transition: opacity .3s var(--ease);
 }
-body.rolling .r-top { opacity: 1; pointer-events: auto; transition-delay: .5s; }
+body.rolling #rTop { opacity: 1; pointer-events: auto; transition-delay: .5s; }
+body.focused #dTop { opacity: 1; pointer-events: auto; transition-delay: .2s; }
 .r-top button:hover { color: var(--signal); }
+/* sound and close carry a Phosphor mark in signal red after the word; when sound is off the word is
+   struck through and the speaker is struck too */
+.r-top button { display: inline-flex; align-items: center; gap: 6px; }
+.r-top .bi { width: 1.05em; height: 1.05em; flex: none; fill: var(--signal); }
+.r-top #rSound .s-off, .r-top #rSound[aria-pressed="false"] .s-on { display: none; }
+.r-top #rSound[aria-pressed="false"] .s-off { display: inline; }
 .r-top #rSound[aria-pressed="false"] { color: var(--grey); text-decoration: line-through; text-decoration-thickness: 1px; }
 .i-roll[hidden] { display: none; }
+/* between two rolls: the title of the stack that waits below, centred in the picture's window */
+.between {
+  position: fixed; z-index: 4; pointer-events: none; text-align: center;
+  left: calc(var(--fl) + (100vw - var(--fl) - var(--m)) / 2); top: calc((var(--top) + 100vh - var(--bot)) / 2 - 16vh);
+  transform: translate(-50%, calc(-50% + 12px)); opacity: 0;
+  transition: opacity .35s var(--ease), transform .5s var(--ease);
+}
+body.rolling.at-divider .between { opacity: 1; transform: translate(-50%, -50%); transition-delay: .15s; }
+.between .b-k { color: color-mix(in srgb, var(--grey) 55%, var(--paper)); }
+.between .b-t { font-size: clamp(3rem, 6vw, 5.5rem); font-weight: 300; line-height: 1; letter-spacing: -.025em; margin: 10px 0 12px; }
+.between .b-m { color: var(--grey); font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) { .between { left: 50%; top: 30vh; } }
 .i-meta span { display: block; }
 .i-meta #iCount { font-variant-numeric: tabular-nums; color: var(--grey); }
 .i-sub:empty { display: none; }
@@ -228,7 +273,7 @@ body.rolling .r-top { opacity: 1; pointer-events: auto; transition-delay: .5s; }
 @media (max-width: 834px) {
   .bar { grid-template-columns: repeat(8, minmax(0, 1fr)); }
   .mark { grid-column: 1 / 3; } .tagwrap { grid-column: 3 / 7; } .theme { grid-column: 7 / 9; }
-  .cap { grid-column: 1 / 4; } .hint { display: none; } .scans { grid-column: 6 / 9; }
+  .hint { display: none; } .scans { grid-column: 6 / 9; }
   .info { width: calc(3 * var(--col) + 2 * var(--g)); }
 }
 @media (max-width: 600px) {
@@ -239,7 +284,7 @@ body.rolling .r-top { opacity: 1; pointer-events: auto; transition-delay: .5s; }
   .tagwrap { display: none; grid-column: 1 / 5; grid-row: 2; margin-top: 16px; }
   .top.open .tagwrap { display: flex; }
   .top.open { padding-top: 16px; }
-  .cap { display: none; } .scans { grid-column: 1 / 5; }
+  .scans { grid-column: 1 / 5; }
   .bottom { height: 64px; }
   .info {
     top: auto; bottom: max(16px, env(safe-area-inset-bottom)); right: var(--m); width: auto; height: calc(var(--bot) - 32px);
@@ -249,11 +294,10 @@ body.rolling .r-top { opacity: 1; pointer-events: auto; transition-delay: .5s; }
   .i-meta { grid-column: 2; }
   .i-nav { grid-column: 2; align-self: end; gap: 16px; }
   .i-roll { grid-column: 2; }
-  .roll { grid-template-rows: 1fr auto auto; }
-  .roll .i-num { grid-row: 1 / 4; }
   .r-top { top: calc(var(--top) + 8px); gap: 16px; }
-  .roll .i-meta { margin-top: 0; grid-row: 1; } .roll .r-frames { grid-row: 2; } .roll .r-rolls { grid-row: 3; }
-  .roll .i-num { margin: 0 0 -.1em; font-size: 5rem; }
+  .info { grid-template-rows: 1fr auto; }
+  .info .i-num { grid-row: 1 / 3; margin: 0 0 -.1em; font-size: 5rem; }
+  .info .i-meta { margin-top: 0; grid-row: 1; align-self: end; } .info .r-rolls, .info .i-roll { grid-row: 2; }
   .r-hint { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }

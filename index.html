@@ -31,7 +31,7 @@
 
   /* the sentence */
   .say {
-    position: absolute; left: var(--m); top: calc(64px + 9vh);
+    position: absolute; left: var(--m); top: 50%; transform: translateY(-50%);   /* centred in the height */
     font-weight: 300; letter-spacing: -.035em; line-height: .96;
     font-size: clamp(56px, 13.2vw, 240px);
   }
@@ -48,12 +48,16 @@
   .hit { position: fixed; inset: 0; z-index: 4; }
   .hit:focus-visible { outline: 2px solid var(--mark); outline-offset: -8px; }
 
-  /* the pointer becomes the label */
+  /* the pointer becomes one oversized red arrow with its word below, like the detail views inside */
   .cursor {
-    position: fixed; left: 0; top: 0; z-index: 6; pointer-events: none;
-    white-space: nowrap; opacity: 0; transition: opacity .15s var(--ease);
+    position: fixed; left: 0; top: 0; z-index: 6; pointer-events: none; white-space: nowrap;
+    margin: -72px 0 0 -72px; width: 144px; display: flex; flex-direction: column; align-items: center; gap: 6px;
   }
-  .cursor.on { opacity: 1; }
+  .cursor svg, .cursor span { opacity: 0; transform: scale(.6); transition: opacity .2s var(--ease), transform .35s cubic-bezier(.3, 1.35, .5, 1); }
+  .cursor.on svg, .cursor.on span { opacity: 1; transform: none; }
+  .cursor svg { width: 144px; height: 144px; overflow: visible; }
+  .cursor path { fill: none; stroke: var(--mark); stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+  .cursor span { color: var(--mark); }
   @media (hover: hover) and (pointer: fine) {
     .hit { cursor: none; }
   }
@@ -126,7 +130,7 @@
 </main>
 
 <a class="hit" id="hit" href="portfolio.html" aria-label="Enter the portfolio"></a>
-<p class="cursor" id="cursor" aria-hidden="true">enter →</p>
+<p class="cursor" id="cursor" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M8 32L56 32M38 14L56 32L38 50"/></svg><span>enter</span></p>
 
 
 <script>
@@ -137,17 +141,20 @@
 
   // ── the reel: hold a word, roll to the next, forever ─────────────────
   const WORDS = ['raphy', 'RAPHI'];
-  const HOLD = 2000;
-  const ROLL = 560;
+  // "photography" only flashes by, "photogRAPHI" is the word that stays: the first turn comes
+  // almost at once, so nobody clicks through before seeing it
+  const HOLD = [650, 2400];                  // ms on raphy, on RAPHI
+  const FIRST = 450;                         // before the very first roll
+  const ROLL = 440;
   const IN_OUT = 'cubic-bezier(0.77, 0, 0.175, 1)';
   const strip = document.getElementById('strip');
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const word = i => `<span class="w${i ? ' caps' : ''}">${WORDS[i]}</span>`;
   (async () => {
     await document.fonts.ready;
-    let at = 0;
+    let at = 0, first = true;
     while (true) {                           // each roll awaits the last, so a throttled tab only pauses
-      await sleep(HOLD);
+      await sleep(first ? FIRST : HOLD[at]); first = false;
       at = 1 - at;
       strip.insertAdjacentHTML('beforeend', word(at));
       const a = strip.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-50%)' }],
@@ -219,7 +226,7 @@
       // a small inset at both edges so pure light and pure dark are easy to reach
       goal = smooth(Math.min(1, Math.max(0, (e.clientX / innerWidth - .1) / .8)));
       wake();
-      cursor.style.transform = `translate3d(${e.clientX + 14}px, ${e.clientY + 14}px, 0)`;
+      cursor.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
       cursor.classList.add('on');
     });
     document.documentElement.addEventListener('pointerleave', () => cursor.classList.remove('on'));
