@@ -242,18 +242,17 @@
     wake();
   }
   if (!fine && 'DeviceOrientationEvent' in window) {
-    const ask = typeof DeviceOrientationEvent.requestPermission === 'function';   // iOS asks first
-    if (ask) {
-      document.body.classList.add('ask');
+    // Listen straight away: Android sends tilt without asking, and iOS does too once this
+    // site has been allowed. Only if nothing arrives does iOS need a tap to ask for it.
+    addEventListener('deviceorientation', onTilt);
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      setTimeout(() => { if (prev === null) document.body.classList.add('ask'); }, 700);
       document.getElementById('tilt').addEventListener('click', e => {
         e.stopPropagation();
         DeviceOrientationEvent.requestPermission()
-          .then(state => { if (state === 'granted') addEventListener('deviceorientation', onTilt); })
           .catch(() => {})
           .finally(() => document.body.classList.remove('ask'));
       });
-    } else {
-      addEventListener('deviceorientation', onTilt);
     }
   }
 
