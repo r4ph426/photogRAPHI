@@ -90,8 +90,10 @@ function renderTags() {
   const worlds = [...(rollCount ? [['rolls', rollCount]] : []), ...sorted.filter(([t]) => isWorld(t))];
   const rows = [['all', photos.length], ...worlds, ...sorted.filter(([t]) => !isWorld(t))];
   const first = new Set([worlds[0]?.[0], sorted.find(([t]) => !isWorld(t))?.[0]]);
-  tagsEl.innerHTML = rows.map(([t, c]) => `<li${first.has(t) ? ' class="g"' : ''}>` + (isWorld(t)
-    ? `<button class="world" data-tag="${t}" aria-pressed="${t === tag}" aria-label="${t} ${c}, opens its own view"><span class="wl">${[...t].map((ch, i) => `<span style="--i:${i}">${ch}</span>`).join('')}</span><svg class="wi" viewBox="0 0 256 256" aria-hidden="true"><path d="${ICON[t]}"/></svg><span class="c">${c}</span></button>`
+  const rest = sorted.find(([t]) => !isWorld(t))?.[0];
+  // in the dock the plain tags start on a line of their own, under all and the worlds
+  tagsEl.innerHTML = rows.map(([t, c]) => (t === rest ? '<li class="nl" role="presentation"></li>' : '') + `<li${first.has(t) ? ' class="g"' : ''}>` + (isWorld(t)
+    ? `<button class="world" data-tag="${t}" aria-pressed="${t === tag}" aria-label="${t} ${c}, opens its own view"><span class="wl">${t}</span><svg class="wi" viewBox="0 0 256 256" aria-hidden="true"><path d="${ICON[t]}"/></svg><span class="c">${c}</span></button>`
     : `<button data-tag="${t}" aria-pressed="${t === tag}"><span class="wl">${t}</span><span class="c">${c}</span></button>`) + '</li>').join('');
 }
 function setOpen(open) {
@@ -140,21 +142,22 @@ function leaveRolls() {
   renderTags();
   try { history.replaceState(null, '', tag === 'all' ? location.pathname : '#' + encodeURIComponent(tag)); } catch (e) {}
 }
-// a roll is named by the year it was shot and its number that year: "Roll 2016/10"
-const rollName = p => `Roll ${String(p.date || '').slice(0, 4) || '?'}/${String(p.roll).padStart(2, '0')}`;
+// a roll is named by the year it was shot and its number that year: "2016 // 10"
+const rollName = p => `${String(p.date || '').slice(0, 4) || '?'} // ${String(p.roll).padStart(2, '0')}`;
+const photosN = n => `${n} photo${n === 1 ? '' : 's'}`;
 function onRollFrame(i, p) {
   document.body.classList.toggle('at-divider', !!p.divider);
   if (p.divider) {
     // the old stack goes down on the table; the panel already speaks of the one waiting
     thud();
     $('#rName').textContent = rollName(p);
-    $('#rCount').textContent = `${p.len} photos`;
+    $('#rCount').textContent = photosN(p.len);
     $('#rStock').textContent = p.stock;
     $('#rDev').textContent = p.dev ? p.dev[0].toUpperCase() + p.dev.slice(1) : '';
     $('#rDate').textContent = formatDate(p.date);
     $('#rNum').textContent = '';
     $('#bT').textContent = rollName(p);
-    $('#bM').textContent = [formatDate(p.date), p.stock, `${p.len} photos`].filter(Boolean).join(' · ');
+    $('#bM').textContent = [formatDate(p.date), p.stock, photosN(p.len)].filter(Boolean).join(' · ');
     try { history.replaceState(null, '', '#rolls/' + encodeURIComponent(p.first.key)); } catch (e) {}
     return;
   }
@@ -181,9 +184,9 @@ soundBtn.setAttribute('aria-pressed', soundOn());
 soundBtn.addEventListener('click', () => { setSound(!soundOn()); soundBtn.setAttribute('aria-pressed', soundOn()); });
 $('#toRoll').addEventListener('click', () => enterRolls(null, world.focused));
 
-/* ---------- the glass lens that glides along the bar ---------- */
-// A pill of milky glass follows the pointer from button to button, bending what is behind its rim.
-// One lives in the side nav and glides down the list, one in the header for the theme switch.
+/* ---------- the glass lens under the tag you point at ---------- */
+// A pill of milky glass sits under the button the pointer is on, bending what is behind its rim.
+// It lives in the tag dock and moves at once, with no glide.
 const lens = $('#lens'), navLens = $('#navLens');
 const fine = matchMedia('(hover: hover) and (pointer: fine)');
 const chromium = !!navigator.userAgentData?.brands?.some(b => /Chromium/.test(b.brand));
@@ -275,7 +278,7 @@ function showInfo(p, i, n) {
   $('#iDev').textContent = p.dev ? p.dev[0].toUpperCase() + p.dev.slice(1) : '';
   $('#iDate').textContent = formatDate(p.date);
   $('#iCount').textContent = `${String(i + 1).padStart(String(n).length, '0')} / ${n}`;
-  $('#iTags').innerHTML = p.tags.map(t => `<button data-tag="${t}">${t}</button>`).join(', ');
+  $('#iTags').innerHTML = p.tags.map(t => `<button data-tag="${t}">#${t}</button>`).join(' ');
   $('#toRoll').parentElement.hidden = p.roll == null || !rollSeq.length;
 }
 $('#iTags').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { world.escape(); setTag(b.dataset.tag); } });
@@ -427,11 +430,15 @@ addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; dro
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', e => { e.preventDefault(); dragDepth = 0; drop.classList.remove('on'); useFiles(e.dataTransfer.files); });
 
-addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); world.resize(); });
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); world.resize(); measureDock(); });
 addEventListener('hashchange', () => setTag(decodeURIComponent(location.hash.slice(1)) || 'all'));
 
 /* ---------- loop ---------- */
 const clock = new THREE.Clock();
+// how much of the bottom the tag dock takes (nothing on phones, where the tags live in the header)
+const dockH = () => innerWidth > 600 ? nav.offsetHeight + 8 : 52;
+function measureDock() { root.style.setProperty('--dock', dockH() + 'px'); }
+
 // The caption of the photo under the pointer sits on the photo itself, along its lower edge: when
 // it was taken in the left corner, the film and how it was developed in the right.
 let lastHit = null, capP;
@@ -446,7 +453,7 @@ function setCaption(p, m) {
   if (!p) return;
   const r = world.screenRect(m), x0 = Math.max(r.x0, 0), x1 = Math.min(r.x1, innerWidth);
   cap.style.width = Math.max(0, Math.round(x1 - x0 - 24)) + 'px';
-  cap.style.transform = `translate3d(${Math.round(x0 + 12)}px, ${Math.round(Math.min(r.y1, innerHeight - 52) - 12)}px, 0) translateY(-100%)`;   // stays clear of the footer
+  cap.style.transform = `translate3d(${Math.round(x0 + 12)}px, ${Math.round(Math.min(r.y1, innerHeight - dockH()) - 12)}px, 0) translateY(-100%)`;   // stays clear of the tag dock
 }
 function loop() {
   requestAnimationFrame(loop);
@@ -486,6 +493,7 @@ function loop() {
   renderTags();
   world.setList(filtered(), mode(tag));
   setHint();
+  measureDock(); document.fonts?.ready.then(measureDock);
   loop();
   if (start.startsWith('rolls')) enterRolls(start.slice(6));
 })();
