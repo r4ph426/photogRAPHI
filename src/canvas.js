@@ -1,5 +1,5 @@
 // The infinite canvas: masonry columns that wrap in every direction.
-// Columns are ~55vw wide at rest. Each column loops on its own period and drifts at a slightly
+// Columns are ~45vw wide at rest. Each column loops on its own period and drifts at a slightly
 // different speed, and the whole sheet bends away and splits colour when you move fast.
 import * as THREE from 'three';
 import { rng } from './placeholders.js';
@@ -44,7 +44,7 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
   let list = [], slots = [], cols = [], TW = 1, minColH = 1, maxItemH = 1, first = true;
   const s = { x: 0, y: 0, z: 2, tx: 0, ty: 0, tz: 2, vx: 0, vy: 0, px: 0, py: 0, t: 0, frame: 0, focus: null, backZ: 2, pending: null };
 
-  const frac = () => innerWidth < 600 ? .84 : innerWidth < 1000 ? .68 : .55;
+  const frac = () => innerWidth < 600 ? .7 : innerWidth < 1000 ? .56 : .45;
   const visH = z => 2 * z * TAN;
   const homeZ = () => (COL / frac()) / (2 * TAN * cam.aspect);
   const minZ = () => homeZ() * .3;
@@ -63,12 +63,9 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
       const p = items[i % n];
       let c = 0;
       for (let k = 1; k < C; k++) if (heights[k] < heights[c]) c = k;
-      const portrait = p.aspect < 1;
-      const small = !portrait && R() < .12;
-      const w = portrait ? COL * .72 : small ? COL * .64 : COL;
-      const h = w / p.aspect;
-      const left = (portrait || small) && R() < .35 ? COL - w : 0;
-      out.push({ p, c, w, h, bx: c * (COL + GAP) + left + w / 2, by: -heights[c] - h / 2 });
+      // every photo fills its column, so the gutters are the same everywhere
+      const w = COL, h = w / p.aspect;
+      out.push({ p, c, w, h, bx: c * (COL + GAP) + w / 2, by: -heights[c] - h / 2 });
       heights[c] += h + GAP;
     }
     cols = heights.map((hh, c) => ({ P: hh - offs[c], f: reduced ? 1 : 1 + ((c % 3) - 1) * .07, acc: 0 }));
@@ -107,10 +104,23 @@ export function createCanvas({ ptr, reduced, frameRect, onFocus, onUnfocus }) {
     const z = homeZ();
     s.tz = s.backZ = z;
     s.z = first && !reduced ? Math.min(maxZ(), z * 2.4) : z;
+    // Entering the site opens on a different photo every time; a filter starts from its first photo.
+    // The chosen photo sits where the first one would: its column on the left margin, its top under the bar.
+    const at = first ? slots[entryIndex(items)] : { c: 0, by: 0, h: 0 };
     const vw = visH(z) * cam.aspect;
-    s.x = s.tx = s.px = vw / 2 - pxToWorld(innerWidth < 600 ? 16 : 40, z);
-    s.y = s.ty = s.py = pxToWorld(innerWidth < 600 ? 72 : 88, z) - visH(z) / 2;
+    s.x = s.tx = s.px = at.c * (COL + GAP) + vw / 2 - pxToWorld(innerWidth < 600 ? 16 : 40, z);
+    s.y = s.ty = s.py = at.by + at.h / 2 + pxToWorld(innerWidth < 600 ? 72 : 88, z) - visH(z) / 2;
     s.vx = s.vy = 0; s.t = 0; first = false;
+  }
+  function entryIndex(items) {
+    const key = p => p.src || p.name || '';
+    let last = null;
+    try { last = localStorage.getItem('photographi-entry'); } catch (e) {}
+    const pick = () => Math.floor(Math.random() * items.length);
+    let i = pick();
+    for (let k = 0; k < 8 && items.length > 1 && key(items[i]) === last; k++) i = pick();
+    try { localStorage.setItem('photographi-entry', key(items[i])); } catch (e) {}
+    return i;
   }
 
   // lazy textures for real photos: load when near the view, free GPU memory when long gone
