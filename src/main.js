@@ -95,6 +95,28 @@ function renderTags() {
   tagsEl.innerHTML = rows.map(([t, c]) => (t === rest ? '<li class="nl" role="presentation"></li>' : '') + `<li${first.has(t) ? ' class="g"' : ''}>` + (isWorld(t)
     ? `<button class="world" data-tag="${t}" aria-pressed="${t === tag}" aria-label="${t} ${c}, opens its own view"><span class="wl">${t}</span><svg class="wi" viewBox="0 0 256 256" aria-hidden="true"><path d="${ICON[t]}"/></svg><span class="c">${c}</span></button>`
     : `<button data-tag="${t}" aria-pressed="${t === tag}"><span class="wl">${t}</span><span class="c">${c}</span></button>`) + '</li>').join('');
+  balanceDock();
+}
+// In the dock the plain tags keep to one line when they fit. When they don't, they are shared out
+// evenly over as few lines as it takes, so no line is left with one or two stragglers.
+function balanceDock() {
+  tagsEl.querySelectorAll('li.nl.auto').forEach(li => li.remove());
+  if (innerWidth <= 600) return;
+  const items = [...tagsEl.children], plain = items.slice(items.findIndex(li => li.classList.contains('nl')) + 1);
+  if (!plain.length) return;
+  const cs = getComputedStyle(tagsEl), gap = parseFloat(cs.columnGap) || 0;
+  const W = tagsEl.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const w = plain.map(li => li.getBoundingClientRect().width + gap), S = w.reduce((a, b) => a + b, 0);
+  if (S <= W) return;
+  const n = Math.ceil(S / W), target = S / n;
+  let acc = 0, line = 1;
+  plain.forEach((li, i) => {
+    if (line < n && acc + w[i] / 2 > target * line) {
+      const br = document.createElement('li'); br.className = 'nl auto'; br.setAttribute('role', 'presentation');
+      li.before(br); line++;
+    }
+    acc += w[i];
+  });
 }
 function setOpen(open) {
   top.classList.toggle('open', open);
@@ -437,7 +459,7 @@ addEventListener('hashchange', () => setTag(decodeURIComponent(location.hash.sli
 const clock = new THREE.Clock();
 // how much of the bottom the tag dock takes (nothing on phones, where the tags live in the header)
 const dockH = () => innerWidth > 600 ? nav.offsetHeight + 8 : 52;
-function measureDock() { root.style.setProperty('--dock', dockH() + 'px'); }
+function measureDock() { balanceDock(); root.style.setProperty('--dock', dockH() + 'px'); }
 
 // The caption of the photo under the pointer sits on the photo itself, along its lower edge: when
 // it was taken in the left corner, the film and how it was developed in the right.
